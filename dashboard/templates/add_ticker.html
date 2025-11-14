@@ -1,0 +1,314 @@
+{% extends "base.html" %}
+
+{% block title %}Add New Ticker{% endblock %}
+
+{% block content %}
+<div class="add-ticker-page">
+    <h2>Add New Stock Ticker</h2>
+
+    <div class="section">
+        <p class="info-text">
+            Enter stock ticker symbols to fetch and add data to your database. 
+            The system will download historical data from Yahoo Finance.
+        </p>
+
+        <form id="addTickerForm" class="add-ticker-form">
+            <div class="form-group">
+                <label for="tickers">Stock Tickers</label>
+                <input 
+                    type="text" 
+                    id="tickers" 
+                    name="tickers" 
+                    placeholder="e.g., AAPL, GOOGL, MSFT"
+                    class="form-input"
+                    required
+                >
+                <small>Enter one or more ticker symbols separated by commas</small>
+            </div>
+
+            <div class="form-group">
+                <label for="period">Time Period</label>
+                <select id="period" name="period" class="form-input">
+                    <option value="5d">5 Days</option>
+                    <option value="1mo" selected>1 Month</option>
+                    <option value="3mo">3 Months</option>
+                    <option value="6mo">6 Months</option>
+                    <option value="1y">1 Year</option>
+                    <option value="2y">2 Years</option>
+                    <option value="5y">5 Years</option>
+                    <option value="max">Maximum Available</option>
+                </select>
+            </div>
+
+            <button type="submit" class="btn-primary" id="submitBtn">
+                <span id="btnText">Add Ticker(s)</span>
+                <span id="btnSpinner" class="spinner" style="display: none;">⏳ Processing...</span>
+            </button>
+        </form>
+
+        <div id="result" class="result-box" style="display: none;">
+            <div id="resultContent"></div>
+        </div>
+
+        <div id="progress" class="progress-box" style="display: none;">
+            <h4>Processing...</h4>
+            <p>Fetching data from Yahoo Finance. This may take a moment.</p>
+            <div class="progress-bar">
+                <div class="progress-fill"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h3>Popular Tickers</h3>
+        <div class="ticker-suggestions">
+            <button class="ticker-chip" onclick="addTickerToInput('AAPL')">AAPL - Apple</button>
+            <button class="ticker-chip" onclick="addTickerToInput('GOOGL')">GOOGL - Google</button>
+            <button class="ticker-chip" onclick="addTickerToInput('MSFT')">MSFT - Microsoft</button>
+            <button class="ticker-chip" onclick="addTickerToInput('AMZN')">AMZN - Amazon</button>
+            <button class="ticker-chip" onclick="addTickerToInput('TSLA')">TSLA - Tesla</button>
+            <button class="ticker-chip" onclick="addTickerToInput('META')">META - Meta</button>
+            <button class="ticker-chip" onclick="addTickerToInput('NVDA')">NVDA - NVIDIA</button>
+            <button class="ticker-chip" onclick="addTickerToInput('JPM')">JPM - JP Morgan</button>
+            <button class="ticker-chip" onclick="addTickerToInput('V')">V - Visa</button>
+            <button class="ticker-chip" onclick="addTickerToInput('WMT')">WMT - Walmart</button>
+        </div>
+    </div>
+</div>
+
+<script>
+function addTickerToInput(ticker) {
+    const input = document.getElementById('tickers');
+    const current = input.value.trim();
+    
+    if (current === '') {
+        input.value = ticker;
+    } else {
+        // Check if ticker already exists
+        const tickers = current.split(',').map(t => t.trim().toUpperCase());
+        if (!tickers.includes(ticker)) {
+            input.value = current + ', ' + ticker;
+        }
+    }
+}
+
+document.getElementById('addTickerForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const tickersInput = document.getElementById('tickers').value;
+    const period = document.getElementById('period').value;
+    const submitBtn = document.getElementById('submitBtn');
+    const btnText = document.getElementById('btnText');
+    const btnSpinner = document.getElementById('btnSpinner');
+    const resultBox = document.getElementById('result');
+    const resultContent = document.getElementById('resultContent');
+    const progressBox = document.getElementById('progress');
+    
+    // Parse tickers
+    const tickers = tickersInput.split(',').map(t => t.trim().toUpperCase()).filter(t => t);
+    
+    if (tickers.length === 0) {
+        showResult('error', 'Please enter at least one ticker symbol');
+        return;
+    }
+    
+    // Disable form
+    submitBtn.disabled = true;
+    btnText.style.display = 'none';
+    btnSpinner.style.display = 'inline';
+    resultBox.style.display = 'none';
+    progressBox.style.display = 'block';
+    
+    try {
+        const response = await fetch('/api/add-ticker', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                tickers: tickers,
+                period: period
+            })
+        });
+        
+        const data = await response.json();
+        
+        progressBox.style.display = 'none';
+        
+        if (data.success) {
+            showResult('success', `
+                <h4>✅ Success!</h4>
+                <p>${data.message}</p>
+                <p><strong>Tickers added:</strong> ${data.tickers.join(', ')}</p>
+                <a href="/" class="btn-small">View Dashboard</a>
+            `);
+            
+            // Clear form
+            document.getElementById('tickers').value = '';
+        } else {
+            showResult('error', `
+                <h4>❌ Error</h4>
+                <p>${data.error}</p>
+                ${data.details ? `<pre class="error-details">${data.details}</pre>` : ''}
+            `);
+        }
+    } catch (error) {
+        progressBox.style.display = 'none';
+        showResult('error', `
+            <h4>❌ Network Error</h4>
+            <p>Failed to connect to the server: ${error.message}</p>
+        `);
+    } finally {
+        submitBtn.disabled = false;
+        btnText.style.display = 'inline';
+        btnSpinner.style.display = 'none';
+    }
+});
+
+function showResult(type, content) {
+    const resultBox = document.getElementById('result');
+    const resultContent = document.getElementById('resultContent');
+    
+    resultBox.className = 'result-box ' + type;
+    resultContent.innerHTML = content;
+    resultBox.style.display = 'block';
+}
+</script>
+
+<style>
+.add-ticker-page {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.info-text {
+    background: #f0f7ff;
+    padding: 1rem;
+    border-radius: 8px;
+    border-left: 4px solid #667eea;
+    margin-bottom: 2rem;
+}
+
+.add-ticker-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.form-group label {
+    font-weight: 600;
+    color: #333;
+}
+
+.form-input {
+    padding: 0.75rem;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: border-color 0.3s;
+}
+
+.form-input:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+.form-group small {
+    color: #666;
+    font-size: 0.85rem;
+}
+
+.result-box {
+    margin-top: 2rem;
+    padding: 1.5rem;
+    border-radius: 8px;
+}
+
+.result-box.success {
+    background: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+}
+
+.result-box.error {
+    background: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+}
+
+.error-details {
+    background: #fff;
+    padding: 1rem;
+    border-radius: 4px;
+    overflow-x: auto;
+    font-size: 0.85rem;
+    margin-top: 1rem;
+}
+
+.progress-box {
+    margin-top: 2rem;
+    padding: 1.5rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    text-align: center;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 8px;
+    background: #e0e0e0;
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 1rem;
+}
+
+.progress-fill {
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, #667eea, #764ba2);
+    animation: progress 2s ease-in-out infinite;
+}
+
+@keyframes progress {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+.ticker-suggestions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.ticker-chip {
+    padding: 0.5rem 1rem;
+    background: #f0f0f0;
+    border: 1px solid #ddd;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.9rem;
+}
+
+.ticker-chip:hover {
+    background: #667eea;
+    color: white;
+    border-color: #667eea;
+}
+
+.spinner {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+</style>
+{% endblock %}

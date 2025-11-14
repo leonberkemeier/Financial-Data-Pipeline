@@ -257,5 +257,72 @@ def api_stock_data(ticker):
     return jsonify(data.to_dict('records'))
 
 
+@app.route('/add-ticker')
+def add_ticker_page():
+    """Page to add new tickers."""
+    return render_template('add_ticker.html')
+
+
+@app.route('/api/add-ticker', methods=['POST'])
+def add_ticker_api():
+    """API endpoint to fetch and add a new ticker."""
+    import subprocess
+    import json
+    from datetime import datetime
+    
+    data = request.get_json()
+    tickers = data.get('tickers', [])
+    period = data.get('period', '1mo')
+    
+    if not tickers:
+        return jsonify({'success': False, 'error': 'No tickers provided'}), 400
+    
+    # Validate tickers (basic check)
+    tickers = [t.strip().upper() for t in tickers if t.strip()]
+    
+    if not tickers:
+        return jsonify({'success': False, 'error': 'Invalid tickers'}), 400
+    
+    try:
+        # Run the pipeline for the new tickers
+        pipeline_path = os.path.join(parent_dir, 'pipeline.py')
+        venv_python = os.path.join(parent_dir, 'venv', 'bin', 'python')
+        
+        cmd = [venv_python, pipeline_path, '--tickers'] + tickers + ['--period', period]
+        
+        result = subprocess.run(
+            cmd,
+            cwd=parent_dir,
+            capture_output=True,
+            text=True,
+            timeout=300  # 5 minute timeout
+        )
+        
+        if result.returncode == 0:
+            return jsonify({
+                'success': True,
+                'message': f'Successfully added {len(tickers)} ticker(s)',
+                'tickers': tickers,
+                'output': result.stdout[-500:]  # Last 500 chars
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Pipeline failed',
+                'details': result.stderr[-500:]
+            }), 500
+            
+    except subprocess.TimeoutExpired:
+        return jsonify({
+            'success': False,
+            'error': 'Pipeline timed out after 5 minutes'
+        }), 500
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
