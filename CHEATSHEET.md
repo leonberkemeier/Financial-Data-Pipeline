@@ -20,6 +20,15 @@ python pipeline.py --period 1y --tickers AAPL MSFT
 python pipeline.py --start-date 2024-01-01 --end-date 2024-12-31 --tickers AAPL
 ```
 
+### View Data in Web Dashboard
+```bash
+# Start the dashboard
+./run_dashboard.sh
+
+# Open in browser
+http://localhost:5000
+```
+
 ### Query the Data
 ```bash
 # Interactive SQL

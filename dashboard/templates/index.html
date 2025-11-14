@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Financial Data{% endblock %}
+
+{% block content %}
+<div class="dashboard">
+    <h2>Market Overview</h2>
+    
+    <div class="stats-grid">
+        <div class="stat-card">
+            <h3>{{ stats.total_companies }}</h3>
+            <p>Companies Tracked</p>
+        </div>
+        <div class="stat-card">
+            <h3>{{ stats.total_records }}</h3>
+            <p>Total Records</p>
+        </div>
+        <div class="stat-card">
+            <h3>{{ stats.total_dates }}</h3>
+            <p>Trading Days</p>
+        </div>
+        <div class="stat-card">
+            <h3>{{ stats.latest_date }}</h3>
+            <p>Latest Data</p>
+        </div>
+    </div>
+
+    <div class="section-row">
+        <div class="section">
+            <h3>📈 Top Gainers</h3>
+            <ul class="mover-list">
+                {% for stock in top_gainers %}
+                <li class="gainer">
+                    <span class="ticker">{{ stock.ticker }}</span>
+                    <span class="change">+{{ "%.2f"|format(stock.price_change_percent) }}%</span>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+
+        <div class="section">
+            <h3>📉 Top Losers</h3>
+            <ul class="mover-list">
+                {% for stock in top_losers %}
+                <li class="loser">
+                    <span class="ticker">{{ stock.ticker }}</span>
+                    <span class="change">{{ "%.2f"|format(stock.price_change_percent) }}%</span>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <div class="section">
+        <h3>Latest Prices</h3>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Ticker</th>
+                    <th>Company</th>
+                    <th>Sector</th>
+                    <th>Price</th>
+                    <th>Change %</th>
+                    <th>Volume</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for stock in latest_prices %}
+                <tr>
+                    <td><strong>{{ stock.ticker }}</strong></td>
+                    <td>{{ stock.company_name }}</td>
+                    <td>{{ stock.sector or 'N/A' }}</td>
+                    <td>${{ "%.2f"|format(stock.close_price) }}</td>
+                    <td class="{% if stock.price_change_percent > 0 %}positive{% else %}negative{% endif %}">
+                        {{ "%.2f"|format(stock.price_change_percent) }}%
+                    </td>
+                    <td>{{ "{:,.0f}".format(stock.volume) }}</td>
+                    <td><a href="{{ url_for('stock_detail', ticker=stock.ticker) }}" class="btn-small">View</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

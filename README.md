@@ -107,6 +107,22 @@ python pipeline.py --period 1y  # Options: 1d, 5d, 1mo, 1y, max
 - `--start-date`: Start date (YYYY-MM-DD format)
 - `--end-date`: End date (YYYY-MM-DD format)
 
+### View Data with Web Dashboard
+
+After running the pipeline, launch the interactive dashboard:
+
+```bash
+./run_dashboard.sh
+```
+
+Open your browser to **http://localhost:5000** to:
+- View market overview and statistics
+- Explore individual stock details with interactive charts
+- Compare multiple stocks side-by-side
+- Access data via REST API endpoints
+
+See `dashboard/README.md` for more details.
+
 ## 📁 Project Structure
 
 ```
@@ -200,16 +216,6 @@ The pipeline includes automatic validation:
 - Price validation (no negatives, OHLC relationships)
 - Duplicate detection
 - Volume validation
-
-## 📈 Next Steps
-
-Potential enhancements:
-1. Add dbt transformations for analytics
-2. Deploy on Databricks/Snowflake
-3. Add Airflow orchestration
-4. Implement data quality monitoring dashboard
-5. Add more data sources (SEC EDGAR, Polygon.io)
-6. Create ML feature pipelines
 
 ## 🤝 Contributing
 

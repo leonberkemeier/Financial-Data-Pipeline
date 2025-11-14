@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}Compare Stocks{% endblock %}
+
+{% block content %}
+<div class="compare-page">
+    <h2>Compare Stocks</h2>
+
+    <div class="section">
+        <h3>Select Stocks to Compare</h3>
+        <form method="GET" action="{{ url_for('compare') }}" class="compare-form">
+            <div class="ticker-selector">
+                {% for ticker in tickers %}
+                <label class="checkbox-label">
+                    <input type="checkbox" name="tickers" value="{{ ticker.ticker }}"
+                           {% if ticker.ticker in selected_tickers %}checked{% endif %}>
+                    {{ ticker.ticker }} - {{ ticker.company_name }}
+                </label>
+                {% endfor %}
+            </div>
+            <button type="submit" class="btn-primary">Compare Selected</button>
+        </form>
+    </div>
+
+    {% if chart_html %}
+    <div class="section">
+        <h3>Price Comparison</h3>
+        {{ chart_html|safe }}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
