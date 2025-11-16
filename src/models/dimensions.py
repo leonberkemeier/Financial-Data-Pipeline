@@ -70,3 +70,17 @@ class DimDataSource(Base):
 
     def __repr__(self):
         return f"<DimDataSource(name={self.source_name})>"
+
+
+class DimFilingType(Base):
+    """SEC filing type dimension table."""
+    __tablename__ = "dim_filing_type"
+
+    filing_type_id = Column(Integer, primary_key=True, autoincrement=True)
+    filing_type = Column(String(20), unique=True, nullable=False, index=True)
+    description = Column(String(255))
+    category = Column(String(50))  # Annual, Quarterly, Current, etc.
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    def __repr__(self):
+        return f"<DimFilingType(type={self.filing_type})>"

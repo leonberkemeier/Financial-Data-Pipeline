@@ -84,3 +84,45 @@ class FactCompanyMetrics(Base):
 
     def __repr__(self):
         return f"<FactCompanyMetrics(company_id={self.company_id}, date_id={self.date_id})>"
+
+
+class FactSECFiling(Base):
+    """SEC filing fact table."""
+    __tablename__ = "fact_sec_filing"
+
+    filing_id = Column(Integer, primary_key=True, autoincrement=True)
+    
+    # Foreign keys
+    company_id = Column(Integer, ForeignKey("dim_company.company_id"), nullable=False, index=True)
+    filing_type_id = Column(Integer, ForeignKey("dim_filing_type.filing_type_id"), nullable=False, index=True)
+    date_id = Column(Integer, ForeignKey("dim_date.date_id"), nullable=False, index=True)
+    source_id = Column(Integer, ForeignKey("dim_data_source.source_id"), nullable=False, index=True)
+    
+    # Filing metadata
+    cik = Column(String(10), nullable=False, index=True)
+    accession_number = Column(String(20), unique=True, nullable=False, index=True)
+    file_number = Column(String(20))
+    accepted_date = Column(DateTime(timezone=True))
+    filing_url = Column(String(500))
+    
+    # Filing content (can be stored as text or reference to file storage)
+    filing_text = Column(String)  # Store extracted text (or NULL for large filings)
+    filing_size = Column(Integer)  # Size in bytes
+    
+    # Metadata
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    # Relationships
+    company = relationship("DimCompany")
+    filing_type = relationship("DimFilingType")
+    date = relationship("DimDate")
+    source = relationship("DimDataSource")
+    
+    __table_args__ = (
+        UniqueConstraint('company_id', 'filing_type_id', 'date_id', name='uix_filing_company_type_date'),
+        {"sqlite_autoincrement": True},
+    )
+
+    def __repr__(self):
+        return f"<FactSECFiling(company_id={self.company_id}, accession={self.accession_number})>"
