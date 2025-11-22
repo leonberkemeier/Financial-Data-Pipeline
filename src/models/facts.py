@@ -1,5 +1,5 @@
 """Fact tables for the star schema."""
-from sqlalchemy import Column, Integer, Numeric, BigInteger, DateTime, ForeignKey, UniqueConstraint
+from sqlalchemy import Column, Integer, Numeric, BigInteger, DateTime, ForeignKey, UniqueConstraint, String, Text
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship
 from .base import Base
