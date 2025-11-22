@@ -15,6 +15,12 @@
                 <li><a href="{{ url_for('index') }}">Dashboard</a></li>
                 <li><a href="{{ url_for('compare') }}">Compare</a></li>
                 <li><a href="{{ url_for('add_ticker_page') }}">Add Ticker</a></li>
+                <li>
+                    <button id="darkModeToggle" class="theme-toggle" onclick="toggleDarkMode()">
+                        <span class="sun-icon">☀️</span>
+                        <span class="moon-icon">🌙</span>
+                    </button>
+                </li>
             </ul>
         </div>
     </nav>
@@ -26,5 +32,49 @@
     <footer>
         <p>Financial Data Aggregator • Star Schema Data Warehouse</p>
     </footer>
+
+    <script>
+        // Dark mode toggle functionality
+        function toggleDarkMode() {
+            document.body.classList.toggle('dark-mode');
+            const isDark = document.body.classList.contains('dark-mode');
+            localStorage.setItem('darkMode', isDark);
+            updatePlotlyTheme();
+        }
+
+        // Load dark mode preference on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            const darkMode = localStorage.getItem('darkMode');
+            if (darkMode === 'true') {
+                document.body.classList.add('dark-mode');
+            }
+            updatePlotlyTheme();
+        });
+
+        // Update Plotly chart themes
+        function updatePlotlyTheme() {
+            const isDark = document.body.classList.contains('dark-mode');
+            const plots = document.querySelectorAll('.plotly-graph-div');
+            
+            plots.forEach(plot => {
+                if (plot && plot.layout) {
+                    const update = {
+                        paper_bgcolor: isDark ? '#1e293b' : '#ffffff',
+                        plot_bgcolor: isDark ? '#1e293b' : '#ffffff',
+                        font: { color: isDark ? '#e2e8f0' : '#333333' },
+                        xaxis: { 
+                            gridcolor: isDark ? '#334155' : '#e5e7eb',
+                            color: isDark ? '#e2e8f0' : '#333333'
+                        },
+                        yaxis: { 
+                            gridcolor: isDark ? '#334155' : '#e5e7eb',
+                            color: isDark ? '#e2e8f0' : '#333333'
+                        }
+                    };
+                    Plotly.relayout(plot, update);
+                }
+            });
+        }
+    </script>
 </body>
 </html>
