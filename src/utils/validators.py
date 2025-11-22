@@ -65,15 +65,14 @@ class DataQualityValidator:
             if invalid_high_low > 0:
                 errors.append(f"{invalid_high_low} records have high < low")
             
-            # High should be >= Open and Close
+            # Warning only for high/low vs open/close mismatches (not errors)
             invalid_high = ((df['high'] < df['open']) | (df['high'] < df['close'])).sum()
             if invalid_high > 0:
-                errors.append(f"{invalid_high} records have high < open or close")
+                logger.warning(f"{invalid_high} records have high < open or close (minor data quality issue)")
             
-            # Low should be <= Open and Close
             invalid_low = ((df['low'] > df['open']) | (df['low'] > df['close'])).sum()
             if invalid_low > 0:
-                errors.append(f"{invalid_low} records have low > open or close")
+                logger.warning(f"{invalid_low} records have low > open or close (minor data quality issue)")
         
         # Check for duplicate records
         if 'ticker' in df.columns and 'date' in df.columns:

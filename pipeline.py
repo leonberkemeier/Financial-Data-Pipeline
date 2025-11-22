@@ -191,7 +191,7 @@ def main():
     )
     parser.add_argument(
         "--period",
-        default="1mo",
+        default="max",
         help="Period to fetch (e.g., 1d, 5d, 1mo, 1y, max)"
     )
     parser.add_argument(

@@ -17,6 +17,29 @@
         </p>
     </div>
 
+    <!-- Time Range Selector -->
+    <div class="time-range-selector" style="margin: 20px 0;">
+        <label for="timeRange" style="font-weight: bold; margin-right: 10px;">Time Range:</label>
+        <select id="timeRange" onchange="changeTimeRange()" style="padding: 8px 12px; font-size: 14px; border-radius: 4px; border: 1px solid #ddd;">
+            <option value="all" {% if time_range == 'all' %}selected{% endif %}>All Time</option>
+            <option value="1m" {% if time_range == '1m' %}selected{% endif %}>1 Month</option>
+            <option value="3m" {% if time_range == '3m' %}selected{% endif %}>3 Months</option>
+            <option value="6m" {% if time_range == '6m' %}selected{% endif %}>6 Months</option>
+            <option value="1y" {% if time_range == '1y' %}selected{% endif %}>1 Year</option>
+            <option value="2y" {% if time_range == '2y' %}selected{% endif %}>2 Years</option>
+            <option value="5y" {% if time_range == '5y' %}selected{% endif %}>5 Years</option>
+        </select>
+    </div>
+
+    <script>
+        function changeTimeRange() {
+            const select = document.getElementById('timeRange');
+            const selectedRange = select.value;
+            const currentUrl = window.location.pathname;
+            window.location.href = currentUrl + '?range=' + selectedRange;
+        }
+    </script>
+
     <div class="stats-grid">
         <div class="stat-card">
             <h3>${{ stats.latest_price }}</h3>

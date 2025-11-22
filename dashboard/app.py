@@ -87,6 +87,9 @@ def stock_detail(ticker):
     """Detailed view for a specific stock."""
     conn = get_db_connection()
     
+    # Get time range filter from query params
+    time_range = request.args.get('range', 'all')
+    
     # Get stock info
     stock_info = conn.execute(text("""
         SELECT ticker, company_name, sector, industry, country
@@ -97,8 +100,24 @@ def stock_detail(ticker):
     if not stock_info:
         return "Stock not found", 404
     
+    # Build date filter based on time range
+    date_filter = ""
+    if time_range != 'all':
+        if time_range == '1m':
+            date_filter = "AND d.date >= date('now', '-1 month')"
+        elif time_range == '3m':
+            date_filter = "AND d.date >= date('now', '-3 months')"
+        elif time_range == '6m':
+            date_filter = "AND d.date >= date('now', '-6 months')"
+        elif time_range == '1y':
+            date_filter = "AND d.date >= date('now', '-1 year')"
+        elif time_range == '2y':
+            date_filter = "AND d.date >= date('now', '-2 years')"
+        elif time_range == '5y':
+            date_filter = "AND d.date >= date('now', '-5 years')"
+    
     # Get price history
-    price_history = pd.read_sql(text("""
+    price_history = pd.read_sql(text(f"""
         SELECT 
             d.date,
             f.open_price,
@@ -111,6 +130,7 @@ def stock_detail(ticker):
         JOIN dim_company c ON f.company_id = c.company_id
         JOIN dim_date d ON f.date_id = d.date_id
         WHERE c.ticker = :ticker
+        {date_filter}
         ORDER BY d.date
     """), conn, params={"ticker": ticker})
     
@@ -160,7 +180,8 @@ def stock_detail(ticker):
                          stats=stats,
                          price_chart=price_chart,
                          volume_chart=volume_chart,
-                         price_data=price_history.to_dict('records'))
+                         price_data=price_history.to_dict('records'),
+                         time_range=time_range)
 
 
 @app.route('/compare')
