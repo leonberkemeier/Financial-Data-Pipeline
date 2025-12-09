@@ -74,6 +74,42 @@
     </div>
 
     <div class="section">
+        <h3>SEC Filings</h3>
+        {% if sec_filings and sec_filings|length > 0 %}
+        <div class="table-scroll">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Filing Type</th>
+                        <th>Filing Date</th>
+                        <th>Accession Number</th>
+                        <th>Document</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for filing in sec_filings %}
+                    <tr>
+                        <td><span class="filing-badge">{{ filing.filing_type }}</span></td>
+                        <td>{{ filing.filing_date }}</td>
+                        <td><code style="font-size: 0.85em;">{{ filing.accession_number }}</code></td>
+                        <td>
+                            {% if filing.filing_url %}
+                            <a href="{{ filing.filing_url }}" target="_blank" class="btn-link">View on SEC.gov →</a>
+                            {% else %}
+                            N/A
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p style="color: #666; font-style: italic; padding: 20px;">No SEC filings available for this ticker. Run the SEC pipeline to fetch filings.</p>
+        {% endif %}
+    </div>
+
+    <div class="section">
         <h3>Historical Data</h3>
         <div class="table-scroll">
             <table class="data-table">
@@ -107,4 +143,26 @@
         </div>
     </div>
 </div>
+
+<style>
+.filing-badge {
+    display: inline-block;
+    padding: 4px 10px;
+    background: #dbeafe;
+    color: #1e40af;
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 0.9em;
+}
+
+.btn-link {
+    color: #2563eb;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.btn-link:hover {
+    text-decoration: underline;
+}
+</style>
 {% endblock %}

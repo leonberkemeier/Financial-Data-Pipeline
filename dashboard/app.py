@@ -82,6 +82,60 @@ def index():
                          top_losers=top_losers)
 
 
+@app.route('/filings')
+def filings():
+    """SEC filings overview page."""
+    conn = get_db_connection()
+    
+    # Get summary stats for filings
+    filing_stats = conn.execute(text("""
+        SELECT 
+            COUNT(DISTINCT c.ticker) as companies_with_filings,
+            COUNT(*) as total_filings,
+            MAX(d.date) as latest_filing_date
+        FROM fact_sec_filing f
+        JOIN dim_company c ON f.company_id = c.company_id
+        JOIN dim_date d ON f.date_id = d.date_id
+    """)).fetchone()
+    
+    # Get filings by type
+    filings_by_type = pd.read_sql(text("""
+        SELECT 
+            ft.filing_type,
+            ft.description,
+            ft.category,
+            COUNT(*) as count
+        FROM fact_sec_filing f
+        JOIN dim_filing_type ft ON f.filing_type_id = ft.filing_type_id
+        GROUP BY ft.filing_type, ft.description, ft.category
+        ORDER BY count DESC
+    """), conn)
+    
+    # Get recent filings
+    recent_filings = pd.read_sql(text("""
+        SELECT 
+            c.ticker,
+            c.company_name,
+            ft.filing_type,
+            d.date as filing_date,
+            f.accession_number,
+            f.filing_url
+        FROM fact_sec_filing f
+        JOIN dim_company c ON f.company_id = c.company_id
+        JOIN dim_filing_type ft ON f.filing_type_id = ft.filing_type_id
+        JOIN dim_date d ON f.date_id = d.date_id
+        ORDER BY d.date DESC
+        LIMIT 50
+    """), conn)
+    
+    conn.close()
+    
+    return render_template('filings.html',
+                         filing_stats=filing_stats,
+                         filings_by_type=filings_by_type.to_dict('records'),
+                         recent_filings=recent_filings.to_dict('records'))
+
+
 @app.route('/stock/<ticker>')
 def stock_detail(ticker):
     """Detailed view for a specific stock."""
@@ -134,6 +188,23 @@ def stock_detail(ticker):
         ORDER BY d.date
     """), conn, params={"ticker": ticker})
     
+    # Get SEC filings for this ticker
+    sec_filings = pd.read_sql(text("""
+        SELECT 
+            ft.filing_type,
+            d.date as filing_date,
+            f.accession_number,
+            f.filing_url
+        FROM fact_sec_filing f
+        JOIN dim_company c ON f.company_id = c.company_id
+        JOIN dim_filing_type ft ON f.filing_type_id = ft.filing_type_id
+        JOIN dim_date d ON f.date_id = d.date_id
+        WHERE c.ticker = :ticker
+        ORDER BY d.date DESC
+        LIMIT 20
+    """), conn, params={"ticker": ticker})
+    
+    # Close connection after all queries are done
     conn.close()
     
     # Create price chart
@@ -181,6 +252,7 @@ def stock_detail(ticker):
                          price_chart=price_chart,
                          volume_chart=volume_chart,
                          price_data=price_history.to_dict('records'),
+                         sec_filings=sec_filings.to_dict('records'),
                          time_range=time_range)
 
 
@@ -276,6 +348,60 @@ def api_stock_data(ticker):
     conn.close()
     
     return jsonify(data.to_dict('records'))
+
+
+@app.route('/api/filings')
+def api_filings():
+    """API endpoint to get all SEC filings."""
+    conn = get_db_connection()
+    
+    filings = pd.read_sql(text("""
+        SELECT 
+            c.ticker,
+            c.company_name,
+            ft.filing_type,
+            ft.category,
+            d.date as filing_date,
+            f.accession_number,
+            f.filing_url,
+            f.filing_size
+        FROM fact_sec_filing f
+        JOIN dim_company c ON f.company_id = c.company_id
+        JOIN dim_filing_type ft ON f.filing_type_id = ft.filing_type_id
+        JOIN dim_date d ON f.date_id = d.date_id
+        ORDER BY d.date DESC
+    """), conn)
+    
+    conn.close()
+    
+    return jsonify(filings.to_dict('records'))
+
+
+@app.route('/api/stock/<ticker>/filings')
+def api_stock_filings(ticker):
+    """API endpoint to get SEC filings for a specific ticker."""
+    conn = get_db_connection()
+    
+    filings = pd.read_sql(text("""
+        SELECT 
+            ft.filing_type,
+            ft.description,
+            ft.category,
+            d.date as filing_date,
+            f.accession_number,
+            f.filing_url,
+            f.filing_size
+        FROM fact_sec_filing f
+        JOIN dim_company c ON f.company_id = c.company_id
+        JOIN dim_filing_type ft ON f.filing_type_id = ft.filing_type_id
+        JOIN dim_date d ON f.date_id = d.date_id
+        WHERE c.ticker = :ticker
+        ORDER BY d.date DESC
+    """), conn, params={"ticker": ticker})
+    
+    conn.close()
+    
+    return jsonify(filings.to_dict('records'))
 
 
 @app.route('/add-ticker')

@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Dict, List, Optional
 from loguru import logger
 from sqlalchemy.orm import Session
-from sqlalchemy import insert, update
+from sqlalchemy import insert, update, func
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 
 from src.models import (
@@ -127,13 +127,23 @@ class SECFilingLoader:
             filing_type = row['filing_type']
             filing_date = row['filing_date']
             
+            # Convert filing_date string to date object for lookup
+            if isinstance(filing_date, str):
+                try:
+                    filing_date_obj = datetime.strptime(filing_date, '%Y-%m-%d').date()
+                except:
+                    logger.warning(f"Skipping filing: invalid date format {filing_date}")
+                    continue
+            else:
+                filing_date_obj = filing_date
+            
             # Get foreign keys
             company_id = company_mapping.get(ticker)
-            date_id = date_mapping.get(filing_date)
+            date_id = date_mapping.get(filing_date_obj)
             filing_type_id = filing_type_mapping.get(filing_type)
             
             if not all([company_id, date_id, filing_type_id]):
-                logger.warning(f"Skipping filing: missing foreign key for {ticker}/{filing_type}/{filing_date}")
+                logger.warning(f"Skipping filing: missing foreign key for {ticker}/{filing_type}/{filing_date} (company_id={company_id}, date_id={date_id}, filing_type_id={filing_type_id})")
                 continue
             
             # Parse accepted_date if present
@@ -206,20 +216,20 @@ class SECFilingLoader:
         try:
             total_filings = self.session.query(FactSECFiling).count()
             
+            # Proper group-by aggregation to count filings per type
             filings_by_type = (
                 self.session.query(
                     DimFilingType.filing_type,
-                    self.session.query(FactSECFiling)
-                    .filter(FactSECFiling.filing_type_id == DimFilingType.filing_type_id)
-                    .count()
-                    .label('count')
+                    func.count(FactSECFiling.filing_id).label('count')
                 )
+                .join(FactSECFiling, FactSECFiling.filing_type_id == DimFilingType.filing_type_id)
+                .group_by(DimFilingType.filing_type)
                 .all()
             )
             
             stats = {
                 'total_filings': total_filings,
-                'filings_by_type': {ft: count for ft, count in filings_by_type}
+                'filings_by_type': {ft: cnt for ft, cnt in filings_by_type}
             }
             
             return stats

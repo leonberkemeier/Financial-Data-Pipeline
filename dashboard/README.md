@@ -5,7 +5,8 @@ A web-based visualization dashboard for exploring your financial data.
 ## Features
 
 - **Market Overview**: View summary statistics and latest prices
-- **Stock Details**: Interactive candlestick charts, volume graphs, and historical data
+- **SEC Filings**: Browse and view company SEC filings (10-K, 10-Q, 8-K)
+- **Stock Details**: Interactive candlestick charts, volume graphs, historical data, and SEC filings
 - **Stock Comparison**: Compare multiple stocks side-by-side
 - **Top Movers**: See biggest gainers and losers
 - **RESTful API**: JSON endpoints for programmatic access
@@ -33,10 +34,17 @@ The dashboard will be available at: **http://localhost:5000**
 - Top gainers and losers
 - Latest prices table with all stocks
 
+### SEC Filings (`/filings`)
+- Summary statistics for all SEC filings
+- Filings grouped by type (10-K, 10-Q, 8-K, etc.)
+- Recent filings across all companies
+- Direct links to SEC.gov documents
+
 ### Stock Detail (`/stock/<TICKER>`)
 - Company information
 - Interactive candlestick chart (OHLC data)
 - Volume bar chart
+- SEC filings for the specific ticker
 - Historical data table
 - Key statistics (current, average, high, low prices)
 
@@ -61,6 +69,20 @@ curl http://localhost:5000/api/stock/AAPL/data
 
 Returns historical price data for specified ticker.
 
+### Get All SEC Filings
+```bash
+curl http://localhost:5000/api/filings
+```
+
+Returns all SEC filings across companies.
+
+### Get SEC Filings for a Stock
+```bash
+curl http://localhost:5000/api/stock/AAPL/filings
+```
+
+Returns SEC filings for specified ticker.
+
 ## Configuration
 
 The dashboard uses the same database configuration as the main pipeline (`.env` file).
@@ -69,7 +91,8 @@ The dashboard uses the same database configuration as the main pipeline (`.env` 
 
 Navigate to:
 - `http://localhost:5000` - Main dashboard
-- `http://localhost:5000/stock/AAPL` - AAPL stock details
+- `http://localhost:5000/filings` - SEC filings overview
+- `http://localhost:5000/stock/AAPL` - AAPL stock details (includes SEC filings)
 - `http://localhost:5000/compare?tickers=AAPL&tickers=TSLA` - Compare AAPL and TSLA
 
 ## Tech Stack
