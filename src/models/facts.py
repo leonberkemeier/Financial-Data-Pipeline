@@ -126,3 +126,54 @@ class FactSECFiling(Base):
 
     def __repr__(self):
         return f"<FactSECFiling(company_id={self.company_id}, accession={self.accession_number})>"
+
+
+class FactFilingAnalysis(Base):
+    """Filing analysis results fact table."""
+    __tablename__ = "fact_filing_analysis"
+
+    analysis_id = Column(Integer, primary_key=True, autoincrement=True)
+    
+    # Foreign keys
+    filing_id = Column(Integer, ForeignKey("fact_sec_filing.filing_id"), nullable=False, index=True, unique=True)
+    company_id = Column(Integer, ForeignKey("dim_company.company_id"), nullable=False, index=True)
+    date_id = Column(Integer, ForeignKey("dim_date.date_id"), nullable=False, index=True)
+    
+    # Section statistics
+    sections_found = Column(Integer)  # Number of sections extracted
+    business_word_count = Column(Integer)
+    risk_factors_word_count = Column(Integer)
+    mda_word_count = Column(Integer)
+    financials_word_count = Column(Integer)
+    
+    # Financial mentions extracted (as JSON text)
+    revenue_mentions = Column(Text)  # JSON array of revenue mentions
+    net_income_mentions = Column(Text)  # JSON array
+    earnings_mentions = Column(Text)  # JSON array
+    cash_mentions = Column(Text)  # JSON array
+    debt_mentions = Column(Text)  # JSON array
+    
+    # Risk analysis
+    risk_keywords = Column(Text)  # JSON array of {'keyword': 'X', 'count': N}
+    
+    # Overall metrics
+    total_word_count = Column(Integer)
+    total_char_count = Column(Integer)
+    financial_mentions_count = Column(Integer)  # Total mentions found
+    
+    # Metadata
+    analyzed_at = Column(DateTime(timezone=True), server_default=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+    
+    # Relationships
+    filing = relationship("FactSECFiling")
+    company = relationship("DimCompany")
+    date = relationship("DimDate")
+    
+    __table_args__ = (
+        {"sqlite_autoincrement": True},
+    )
+
+    def __repr__(self):
+        return f"<FactFilingAnalysis(filing_id={self.filing_id}, sections={self.sections_found})>"
