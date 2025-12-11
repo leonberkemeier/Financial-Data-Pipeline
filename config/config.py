@@ -27,6 +27,16 @@ TICKERS = [
     "META", "NVDA", "JPM", "V", "WMT"
 ]
 
+# Ollama Configuration (for RAG demo)
+OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
+
+# RAG Configuration
+RAG_LLM_MODEL = os.getenv("RAG_LLM_MODEL", "llama3.1:8b")
+RAG_EMBEDDING_MODEL = os.getenv("RAG_EMBEDDING_MODEL", "nomic-embed-text")
+RAG_TOP_K_RESULTS = int(os.getenv("RAG_TOP_K_RESULTS", 3))
+RAG_CHROMA_PATH = BASE_DIR / "data" / "chromadb"
+
 # Ensure directories exist
 DATA_DIR.mkdir(exist_ok=True)
 LOGS_DIR.mkdir(exist_ok=True)
+RAG_CHROMA_PATH.mkdir(parents=True, exist_ok=True)
