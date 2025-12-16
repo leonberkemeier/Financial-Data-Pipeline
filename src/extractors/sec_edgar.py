@@ -232,26 +232,74 @@ class SECEdgarExtractor:
         Extract text content from a filing URL.
         
         Args:
-            filing_url: URL to the filing document
+            filing_url: URL to the filing document (index page)
             
         Returns:
             Extracted text content or None if error
         """
         try:
+            # First, fetch the index page to find the actual document
             self._rate_limit()
             response = self.session.get(filing_url, timeout=15)
             response.raise_for_status()
             
             soup = BeautifulSoup(response.content, 'html.parser')
             
+            # Find the primary document link
+            # Look for .txt file first (complete submission text file)
+            txt_link = None
+            for link in soup.find_all('a', href=True):
+                href = link['href']
+                # Look for the primary document (usually ends with .htm or .txt)
+                # Priority: .txt file (complete submission), then first .htm document
+                if '.txt' in href and 'FilingSummary' not in href:
+                    txt_link = href
+                    break
+            
+            # If no .txt file, try to find the primary document (.htm)
+            if not txt_link:
+                # Look for the first document table row
+                table = soup.find('table', {'class': 'tableFile'})
+                if table:
+                    rows = table.find_all('tr')[1:]  # Skip header
+                    if rows:
+                        first_doc = rows[0].find('a', href=True)
+                        if first_doc:
+                            txt_link = first_doc['href']
+            
+            if not txt_link:
+                logger.warning(f"Could not find document link in filing index: {filing_url}")
+                # Fall back to extracting text from the index page itself
+                for script in soup(["script", "style"]):
+                    script.decompose()
+                text = soup.get_text(separator='\n', strip=True)
+                logger.debug(f"Extracted {len(text)} characters from index page (fallback)")
+                return text
+            
+            # Construct full URL and fetch the actual document
+            if txt_link.startswith('http'):
+                doc_url = txt_link
+            else:
+                # Build full URL from relative path
+                base_url = '/'.join(filing_url.split('/')[:-1])
+                doc_url = urljoin(base_url + '/', txt_link)
+            
+            logger.debug(f"Fetching document from: {doc_url}")
+            self._rate_limit()
+            doc_response = self.session.get(doc_url, timeout=15)
+            doc_response.raise_for_status()
+            
+            # Parse the document
+            doc_soup = BeautifulSoup(doc_response.content, 'html.parser')
+            
             # Remove script and style elements
-            for script in soup(["script", "style"]):
+            for script in doc_soup(["script", "style"]):
                 script.decompose()
             
             # Get text
-            text = soup.get_text(separator='\n', strip=True)
+            text = doc_soup.get_text(separator='\n', strip=True)
             
-            logger.debug(f"Extracted {len(text)} characters from filing")
+            logger.debug(f"Extracted {len(text)} characters from filing document")
             return text
             
         except Exception as e:

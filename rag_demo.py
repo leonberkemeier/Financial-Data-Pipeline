@@ -110,11 +110,13 @@ class RAGSystem:
             # Extract sections
             sections = self.analyzer.extract_all_sections(filing['filing_text'])
             
-            if not sections:
-                logger.warning(f"  No sections found, skipping")
-                continue
+            # If section extraction fails, chunk the entire document
+            if not sections or all(len(text) < 100 for text in sections.values()):
+                logger.info(f"  Section extraction found insufficient content, using full document chunking")
+                sections = {'full_document': filing['filing_text']}
             
             # Create chunks from sections
+            chunks_created = 0
             for section_name, section_text in sections.items():
                 # Split long sections into chunks (max ~1000 words)
                 words = section_text.split()
@@ -152,12 +154,17 @@ class RAGSystem:
                         )
                         
                         total_chunks += 1
+                        chunks_created += 1
+                        
+                        # Log progress every 50 chunks
+                        if chunks_created % 50 == 0:
+                            logger.info(f"    Created {chunks_created} embeddings...")
                         
                     except Exception as e:
                         logger.error(f"  Error creating embedding: {str(e)}")
                         continue
             
-            logger.info(f"  Created {len(sections)} section chunks")
+            logger.info(f"  Created {chunks_created} chunks from {len(sections)} section(s)")
         
         logger.info(f"✓ Successfully created {total_chunks} embeddings")
         logger.info(f"✓ Saved to {RAG_CHROMA_PATH}")
