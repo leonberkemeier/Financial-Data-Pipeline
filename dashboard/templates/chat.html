@@ -1,0 +1,492 @@
+{% extends "base.html" %}
+
+{% block title %}AI Chat - Financial Data Dashboard{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>🤖 AI Chat - Query SEC Filings</h1>
+    <p>Ask questions about company filings using natural language</p>
+</div>
+
+{% if not rag_available %}
+<div class="alert alert-warning">
+    <h3>⚠️ RAG System Not Available</h3>
+    <p>The AI chat system requires Ollama to be running. Please check:</p>
+    <ul>
+        <li>Ollama server is accessible</li>
+        <li>Environment variables are configured (.env file)</li>
+        <li>RAG embeddings have been initialized (run: <code>python rag_demo.py --init</code>)</li>
+    </ul>
+</div>
+{% endif %}
+
+<div class="chat-container">
+    <div class="chat-sidebar">
+        <h3>Available Data</h3>
+        <div class="companies-list">
+            {% if companies %}
+                <p class="info-text">{{ companies|length }} companies with SEC filings:</p>
+                <ul>
+                {% for company in companies %}
+                    <li>
+                        <strong>{{ company.ticker }}</strong> - {{ company.company_name }}
+                        <span class="filing-count">({{ company.filing_count }} filing{{ 's' if company.filing_count != 1 else '' }})</span>
+                    </li>
+                {% endfor %}
+                </ul>
+            {% else %}
+                <p class="info-text">No filings available. Run <code>sec_etl_pipeline.py</code> to extract data.</p>
+            {% endif %}
+        </div>
+        
+        <div class="example-queries">
+            <h4>Example Questions:</h4>
+            <ul>
+                <li onclick="setQuestion(this)">What type of document is this?</li>
+                <li onclick="setQuestion(this)">What risks does Apple face?</li>
+                <li onclick="setQuestion(this)">What are the main revenue sources?</li>
+                <li onclick="setQuestion(this)">Compare revenue trends</li>
+                <li onclick="setQuestion(this)">What is in the available data?</li>
+            </ul>
+        </div>
+    </div>
+    
+    <div class="chat-main">
+        <div id="chatMessages" class="chat-messages">
+            <div class="message bot-message">
+                <div class="message-header">
+                    <span class="bot-icon">🤖</span>
+                    <span class="bot-name">AI Assistant</span>
+                </div>
+                <div class="message-content">
+                    Hello! I can help you analyze SEC filings using natural language. Ask me anything about the companies in our database.
+                </div>
+            </div>
+        </div>
+        
+        <div class="chat-input-container">
+            <form id="chatForm">
+                <input 
+                    type="text" 
+                    id="questionInput" 
+                    placeholder="Ask a question about SEC filings..."
+                    autocomplete="off"
+                    {% if not rag_available or not companies %}disabled{% endif %}
+                >
+                <button 
+                    type="submit" 
+                    id="sendButton"
+                    {% if not rag_available or not companies %}disabled{% endif %}
+                >
+                    Send
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+.chat-container {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: 2rem;
+    height: calc(100vh - 250px);
+    margin-top: 2rem;
+}
+
+.chat-sidebar {
+    background: var(--card-bg);
+    padding: 1.5rem;
+    border-radius: 8px;
+    overflow-y: auto;
+}
+
+.chat-sidebar h3 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    color: var(--primary-color);
+}
+
+.chat-sidebar h4 {
+    margin-top: 1.5rem;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+    color: var(--text-color);
+}
+
+.companies-list ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.companies-list li {
+    padding: 0.5rem;
+    margin: 0.5rem 0;
+    background: var(--bg-color);
+    border-radius: 4px;
+    font-size: 0.9rem;
+}
+
+.filing-count {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+
+.example-queries ul {
+    list-style: none;
+    padding: 0;
+}
+
+.example-queries li {
+    padding: 0.75rem;
+    margin: 0.5rem 0;
+    background: var(--bg-color);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 0.9rem;
+}
+
+.example-queries li:hover {
+    background: var(--primary-color);
+    color: white;
+    transform: translateX(5px);
+}
+
+.chat-main {
+    display: flex;
+    flex-direction: column;
+    background: var(--card-bg);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.message {
+    max-width: 80%;
+    padding: 1rem;
+    border-radius: 12px;
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.user-message {
+    align-self: flex-end;
+    background: var(--primary-color);
+    color: white;
+}
+
+.bot-message {
+    align-self: flex-start;
+    background: var(--bg-color);
+    border: 1px solid var(--border-color);
+}
+
+.message-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.bot-icon {
+    font-size: 1.2rem;
+}
+
+.message-content {
+    line-height: 1.6;
+    white-space: pre-wrap;
+}
+
+.message-sources {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border-color);
+    font-size: 0.85rem;
+}
+
+.message-sources h4 {
+    margin: 0 0 0.5rem 0;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+
+.message-sources ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.message-sources li {
+    padding: 0.25rem 0;
+    color: var(--text-muted);
+}
+
+.price-chart-container {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: var(--card-bg);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.chat-input-container {
+    padding: 1.5rem;
+    background: var(--bg-color);
+    border-top: 1px solid var(--border-color);
+}
+
+#chatForm {
+    display: flex;
+    gap: 1rem;
+}
+
+#questionInput {
+    flex: 1;
+    padding: 0.75rem 1rem;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    font-size: 1rem;
+    background: var(--card-bg);
+    color: var(--text-color);
+}
+
+#questionInput:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+
+#questionInput:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+#sendButton {
+    padding: 0.75rem 2rem;
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+#sendButton:hover:not(:disabled) {
+    background: #2563eb;
+    transform: translateY(-2px);
+}
+
+#sendButton:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.alert {
+    padding: 1.5rem;
+    border-radius: 8px;
+    margin-bottom: 2rem;
+}
+
+.alert-warning {
+    background: #fef3c7;
+    border: 1px solid #fbbf24;
+    color: #92400e;
+}
+
+.alert h3 {
+    margin-top: 0;
+}
+
+.alert code {
+    background: rgba(0,0,0,0.1);
+    padding: 0.2rem 0.4rem;
+    border-radius: 3px;
+}
+
+.loading-indicator {
+    display: none;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 1rem;
+    color: var(--text-muted);
+}
+
+.loading-indicator.active {
+    display: flex;
+}
+
+.spinner {
+    width: 20px;
+    height: 20px;
+    border: 3px solid var(--border-color);
+    border-top-color: var(--primary-color);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.info-text {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+@media (max-width: 768px) {
+    .chat-container {
+        grid-template-columns: 1fr;
+        height: auto;
+    }
+    
+    .chat-sidebar {
+        max-height: 300px;
+    }
+    
+    .chat-main {
+        height: 500px;
+    }
+}
+</style>
+
+<script>
+function setQuestion(element) {
+    document.getElementById('questionInput').value = element.textContent;
+}
+
+document.getElementById('chatForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const input = document.getElementById('questionInput');
+    const question = input.value.trim();
+    
+    if (!question) return;
+    
+    // Add user message
+    addMessage(question, 'user');
+    input.value = '';
+    
+    // Show loading
+    const loadingDiv = document.createElement('div');
+    loadingDiv.className = 'loading-indicator active';
+    loadingDiv.innerHTML = '<div class="spinner"></div><span>Thinking...</span>';
+    loadingDiv.id = 'loading';
+    document.getElementById('chatMessages').appendChild(loadingDiv);
+    scrollToBottom();
+    
+    try {
+        const response = await fetch('/api/chat/query', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ question })
+        });
+        
+        const data = await response.json();
+        
+        // Remove loading
+        document.getElementById('loading').remove();
+        
+        if (data.success) {
+            addMessage(data.answer, 'bot', data.sources, data.price_data);
+        } else {
+            addMessage('Error: ' + data.error, 'bot');
+        }
+    } catch (error) {
+        document.getElementById('loading').remove();
+        addMessage('Error: ' + error.message, 'bot');
+    }
+});
+
+function addMessage(content, type, sources = null, priceData = null) {
+    const messagesDiv = document.getElementById('chatMessages');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${type}-message`;
+    
+    if (type === 'bot') {
+        messageDiv.innerHTML = `
+            <div class="message-header">
+                <span class="bot-icon">🤖</span>
+                <span class="bot-name">AI Assistant</span>
+            </div>
+            <div class="message-content">${content}</div>
+            ${priceData && priceData.length > 0 ? `
+                <div class="price-chart-container" id="price-chart-${Date.now()}"></div>
+            ` : ''}
+            ${sources && sources.length > 0 ? `
+                <div class="message-sources">
+                    <h4>📚 Sources:</h4>
+                    <ul>
+                        ${sources.map(s => `<li>• ${s.ticker} ${s.filing_type} (${s.filing_date}) - ${s.section}</li>`).join('')}
+                    </ul>
+                </div>
+            ` : ''}
+        `;
+        
+        messagesDiv.appendChild(messageDiv);
+        
+        // Add price chart if data is available
+        if (priceData && priceData.length > 0) {
+            const chartId = messageDiv.querySelector('.price-chart-container').id;
+            renderPriceChart(chartId, priceData);
+        }
+    } else {
+        messageDiv.innerHTML = `<div class="message-content">${content}</div>`;
+        messagesDiv.appendChild(messageDiv);
+    }
+    
+    scrollToBottom();
+}
+
+function renderPriceChart(containerId, priceData) {
+    // Group by ticker
+    const tickers = [...new Set(priceData.map(d => d.ticker))];
+    
+    const traces = tickers.map(ticker => {
+        const tickerData = priceData.filter(d => d.ticker === ticker);
+        tickerData.reverse(); // Oldest to newest
+        
+        return {
+            x: tickerData.map(d => d.date),
+            y: tickerData.map(d => d.close_price),
+            name: ticker,
+            type: 'scatter',
+            mode: 'lines+markers'
+        };
+    });
+    
+    const layout = {
+        title: 'Stock Price History',
+        xaxis: { title: 'Date' },
+        yaxis: { title: 'Close Price ($)' },
+        height: 300,
+        margin: { t: 40, b: 40, l: 60, r: 20 }
+    };
+    
+    Plotly.newPlot(containerId, traces, layout);
+}
+
+function scrollToBottom() {
+    const messagesDiv = document.getElementById('chatMessages');
+    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+}
+</script>
+{% endblock %}

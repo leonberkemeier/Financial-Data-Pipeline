@@ -13,7 +13,15 @@ parent_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, parent_dir)
 
 # Import config
-from config.config import DATABASE_URL
+from config.config import DATABASE_URL, OLLAMA_HOST, RAG_LLM_MODEL, RAG_EMBEDDING_MODEL, RAG_CHROMA_PATH
+
+# Import RAG system
+try:
+    from rag_demo import RAGSystem
+    RAG_AVAILABLE = True
+except Exception as e:
+    RAG_AVAILABLE = False
+    print(f"Warning: RAG system not available: {e}")
 
 app = Flask(__name__)
 
@@ -402,6 +410,174 @@ def api_stock_filings(ticker):
     conn.close()
     
     return jsonify(filings.to_dict('records'))
+
+
+@app.route('/chat')
+def chat():
+    """RAG chat interface for querying SEC filings."""
+    conn = get_db_connection()
+    
+    # Get available companies with SEC filings
+    companies = pd.read_sql(text("""
+        SELECT DISTINCT
+            c.ticker,
+            c.company_name,
+            COUNT(f.filing_id) as filing_count
+        FROM dim_company c
+        JOIN fact_sec_filing f ON c.company_id = f.company_id
+        WHERE f.filing_text IS NOT NULL
+        GROUP BY c.ticker, c.company_name
+        ORDER BY c.ticker
+    """), conn)
+    
+    conn.close()
+    
+    return render_template('chat.html',
+                         rag_available=RAG_AVAILABLE,
+                         companies=companies.to_dict('records'))
+
+
+@app.route('/api/chat/query', methods=['POST'])
+def api_chat_query():
+    """API endpoint for RAG queries with OHLCV data access."""
+    if not RAG_AVAILABLE:
+        return jsonify({
+            'success': False,
+            'error': 'RAG system not available. Check Ollama connection.'
+        }), 503
+    
+    try:
+        data = request.get_json()
+        question = data.get('question', '').strip()
+        
+        if not question:
+            return jsonify({'success': False, 'error': 'No question provided'}), 400
+        
+        # Strategy: Always try to provide comprehensive data
+        # 1. Try RAG for SEC filing context
+        # 2. Extract tickers and get price data
+        # 3. Let LLM synthesize both sources
+        
+        rag = RAGSystem()
+        result = rag.query(question, verbose=False)
+        
+        # Extract tickers from sources OR question
+        tickers = list(set([s['ticker'] for s in result['sources']])) if result['sources'] else []
+        
+        # If no sources, try to extract ticker from question
+        if not tickers:
+            import re
+            # Common ticker patterns
+            ticker_matches = re.findall(r'\b([A-Z]{1,5})\b', question.upper())
+            # Also check for company names
+            company_map = {'APPLE': 'AAPL', 'MICROSOFT': 'MSFT', 'NVIDIA': 'NVDA', 'AMAZON': 'AMZN'}
+            for company, ticker in company_map.items():
+                if company in question.upper():
+                    tickers.append(ticker)
+                    break
+            if not tickers and ticker_matches:
+                # Use first potential ticker found
+                tickers = [ticker_matches[0]]
+        
+        # If we found tickers, fetch price data
+        if tickers:
+            conn = get_db_connection()
+            
+            # Get recent price data for mentioned tickers
+            placeholders = ','.join([f':ticker{i}' for i in range(len(tickers))])
+            params = {f'ticker{i}': ticker for i, ticker in enumerate(tickers)}
+            
+            price_data = pd.read_sql(text(f"""
+                SELECT 
+                    c.ticker,
+                    d.date,
+                    f.open_price,
+                    f.high_price,
+                    f.low_price,
+                    f.close_price,
+                    f.volume,
+                    f.price_change_percent
+                FROM fact_stock_price f
+                JOIN dim_company c ON f.company_id = c.company_id
+                JOIN dim_date d ON f.date_id = d.date_id
+                WHERE c.ticker IN ({placeholders})
+                ORDER BY d.date DESC
+                LIMIT 100
+            """), conn, params=params)
+            
+            conn.close()
+            
+            if not price_data.empty:
+                # Build comprehensive price summary
+                price_summary = "\n\n📊 Stock Market Data:\n"
+                
+                for ticker in tickers:
+                    ticker_data = price_data[price_data['ticker'] == ticker]
+                    if not ticker_data.empty:
+                        latest = ticker_data.iloc[0]
+                        oldest = ticker_data.iloc[-1]
+                        avg_price = ticker_data['close_price'].mean()
+                        max_price = ticker_data['high_price'].max()
+                        min_price = ticker_data['low_price'].min()
+                        
+                        # Calculate price change
+                        price_change = latest['close_price'] - oldest['close_price']
+                        price_change_pct = (price_change / oldest['close_price']) * 100
+                        
+                        price_summary += f"\n{ticker}:\n"
+                        price_summary += f"  Latest Close: ${latest['close_price']:.2f} ({latest['date']})\n"
+                        price_summary += f"  Period Change: ${price_change:+.2f} ({price_change_pct:+.2f}%)\n"
+                        price_summary += f"  Average: ${avg_price:.2f}\n"
+                        price_summary += f"  Range: ${min_price:.2f} - ${max_price:.2f}\n"
+                        price_summary += f"  Data Points: {len(ticker_data)} days\n"
+                
+                # If we have BOTH SEC filing context AND price data, ask LLM for integrated analysis
+                if result['sources'] and result['answer'] and "No relevant information found" not in result['answer']:
+                    # Create integrated prompt
+                    integrated_prompt = f"""You have access to both SEC filing information and stock market data. Provide a comprehensive analysis integrating both sources.
+
+SEC Filing Context:
+{result['answer']}
+
+{price_summary}
+
+Question: {question}
+
+Provide an integrated analysis that combines insights from both the SEC filing and market performance data. Be specific and actionable."""
+                    
+                    try:
+                        # Get integrated analysis from LLM
+                        import ollama
+                        ollama_client = ollama.Client(host=OLLAMA_HOST)
+                        response = ollama_client.generate(
+                            model=RAG_LLM_MODEL,
+                            prompt=integrated_prompt
+                        )
+                        result['answer'] = response['response'] + price_summary
+                    except Exception as e:
+                        # Fallback: just append price data
+                        result['answer'] += price_summary
+                else:
+                    # Only have price data or only have SEC data
+                    if not result['answer'] or "No relevant information found" in result['answer']:
+                        result['answer'] = f"Here's the available data for {', '.join(tickers)}:" + price_summary
+                    else:
+                        result['answer'] += price_summary
+                
+                result['price_data'] = price_data.to_dict('records')
+        
+        return jsonify({
+            'success': True,
+            'answer': result['answer'],
+            'sources': result['sources'],
+            'price_data': result.get('price_data', [])
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 
 @app.route('/add-ticker')

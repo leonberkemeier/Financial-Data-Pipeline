@@ -246,26 +246,35 @@ class SECEdgarExtractor:
             soup = BeautifulSoup(response.content, 'html.parser')
             
             # Find the primary document link
-            # Look for .txt file first (complete submission text file)
+            # Look for the primary HTML document
             txt_link = None
-            for link in soup.find_all('a', href=True):
-                href = link['href']
-                # Look for the primary document (usually ends with .htm or .txt)
-                # Priority: .txt file (complete submission), then first .htm document
-                if '.txt' in href and 'FilingSummary' not in href:
-                    txt_link = href
-                    break
             
-            # If no .txt file, try to find the primary document (.htm)
-            if not txt_link:
-                # Look for the first document table row
-                table = soup.find('table', {'class': 'tableFile'})
-                if table:
-                    rows = table.find_all('tr')[1:]  # Skip header
-                    if rows:
-                        first_doc = rows[0].find('a', href=True)
-                        if first_doc:
-                            txt_link = first_doc['href']
+            # Look for the first document table row
+            table = soup.find('table', {'class': 'tableFile'})
+            if table:
+                rows = table.find_all('tr')[1:]  # Skip header
+                if rows:
+                    # Strategy: find first .htm file that's NOT .txt and NOT an exhibit
+                    for row in rows:
+                        cells = row.find_all('td')
+                        if len(cells) >= 2:
+                            doc_link = cells[2].find('a', href=True) if len(cells) > 2 else None
+                            if not doc_link:
+                                doc_link = row.find('a', href=True)
+                            
+                            if doc_link:
+                                href = doc_link['href']
+                                doc_desc = cells[1].text.strip() if len(cells) > 1 else ''
+                                
+                                # Get first .htm document that's not a .txt file
+                                if (('.htm' in href.lower() or '.html' in href.lower()) and 
+                                    '.txt' not in href.lower() and
+                                    'R1.htm' not in href and
+                                    'R2.htm' not in href and
+                                    'FilingSummary' not in href):
+                                    txt_link = href
+                                    logger.debug(f"Found document: {doc_desc} - {href}")
+                                    break
             
             if not txt_link:
                 logger.warning(f"Could not find document link in filing index: {filing_url}")
