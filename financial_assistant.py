@@ -27,18 +27,18 @@ from config.config import OLLAMA_HOST, RAG_LLM_MODEL
 TOOLS = {
     'get_latest_price': {
         'function': get_latest_price,
-        'description': 'Get the most recent stock price for a ticker',
-        'params': ['ticker']
+        'description': 'Get the most recent stock price for a SINGLE ticker only',
+        'params': ['ticker (string, e.g. "AAPL")']
     },
     'get_price_statistics': {
         'function': get_price_statistics,
-        'description': 'Get price statistics (avg, min, max, volatility, returns) for a period',
-        'params': ['ticker', 'days (optional, default 30)']
+        'description': 'Get price statistics (avg, min, max, volatility, returns) for a SINGLE ticker over a period',
+        'params': ['ticker (string)', 'days (optional, default 30)']
     },
     'compare_stocks': {
         'function': compare_stocks,
-        'description': 'Compare multiple stocks side-by-side',
-        'params': ['tickers (list)', 'days (optional, default 30)']
+        'description': 'Compare MULTIPLE stocks side-by-side with performance metrics. Use this for comparing 2+ tickers.',
+        'params': ['tickers (list of strings, e.g. ["AAPL", "MSFT"])', 'days (optional, default 30)']
     },
     'list_available_tickers': {
         'function': list_available_tickers,
@@ -104,12 +104,20 @@ def ask_assistant(question: str, verbose: bool = True) -> str:
 User question: {question}
 
 Analyze the question and determine which tool(s) to use:
-- For PRICE/STOCK DATA (current prices, statistics, comparisons): use MCP tools (get_latest_price, get_price_statistics, compare_stocks)
+- For PRICE/STOCK DATA:
+  * Single ticker price: use get_latest_price (takes ticker as string)
+  * Single ticker statistics: use get_price_statistics (takes ticker as string)
+  * Multiple tickers comparison: use compare_stocks (takes tickers as list)
 - For SEC FILING CONTENT (business risks, MD&A, detailed filing analysis): use query_sec_filings
 - For LISTING/SEARCHING companies: use list_available_tickers or search_companies
-- For SEC FILING METADATA (dates, types): use get_sec_filings
+- For SEC FILING METADATA (dates, types, URLs): use get_sec_filings
 
-Respond with JSON in this format (you can call multiple tools):
+IMPORTANT:
+- get_latest_price and get_price_statistics take ONE ticker (string), not multiple
+- compare_stocks takes MULTIPLE tickers (list of strings)
+- Always match the parameter types exactly as specified
+
+Respond with ONLY valid JSON in this format (you can call multiple tools):
 {{
   "tools": [
     {{"tool": "tool_name", "arguments": {{"param": "value"}}}},
@@ -118,6 +126,7 @@ Respond with JSON in this format (you can call multiple tools):
   "reasoning": "Brief explanation of why you chose these tools"
 }}
 
+IMPORTANT: Do NOT include comments (//) in the JSON. Return pure JSON only.
 If no tools are needed, respond with: {{"tools": [], "reasoning": "..."}}"""
     
     try:
@@ -140,6 +149,16 @@ If no tools are needed, respond with: {{"tools": [], "reasoning": "..."}}"""
             json_str = json_str.split('```json')[1].split('```')[0].strip()
         elif '```' in json_str:
             json_str = json_str.split('```')[1].split('```')[0].strip()
+        
+        # Remove JSON comments (// style)
+        lines = json_str.split('\n')
+        cleaned_lines = []
+        for line in lines:
+            # Remove inline comments
+            if '//' in line:
+                line = line.split('//')[0]
+            cleaned_lines.append(line)
+        json_str = '\n'.join(cleaned_lines)
         
         decision = json.loads(json_str)
         
