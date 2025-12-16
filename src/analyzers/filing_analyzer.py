@@ -9,16 +9,17 @@ class FilingAnalyzer:
     
     def __init__(self):
         """Initialize the filing analyzer with section patterns."""
-        # Regex patterns for common 10-K/10-Q sections
+        # More tolerant regex patterns for common 10-K/10-Q sections
+        # Allow different punctuation, newlines, multiple spaces, and unicode dashes
         self.section_patterns = {
-            'business': r'Item\s+1[\.\s]+Business',
-            'risk_factors': r'Item\s+1A[\.\s]+Risk\s+Factors',
-            'unresolved_staff_comments': r'Item\s+1B[\.\s]+Unresolved\s+Staff\s+Comments',
-            'properties': r'Item\s+2[\.\s]+Properties',
-            'legal_proceedings': r'Item\s+3[\.\s]+Legal\s+Proceedings',
-            'mda': r'Item\s+7[\.\s]+Management',
-            'financials': r'Item\s+8[\.\s]+Financial\s+Statements',
-            'controls': r'Item\s+9A[\.\s]+Controls\s+and\s+Procedures'
+            'business': r'item\s*1\s*[\.:\-–—]*\s*business',
+            'risk_factors': r'item\s*1a\s*[\.:\-–—]*\s*risk\s*factors',
+            'unresolved_staff_comments': r'item\s*1b\s*[\.:\-–—]*\s*unresolved\s*staff\s*comments',
+            'properties': r'item\s*2\s*[\.:\-–—]*\s*properties',
+            'legal_proceedings': r'item\s*3\s*[\.:\-–—]*\s*legal\s*proceedings',
+            'mda': r'item\s*7\s*[\.:\-–—]*\s*management.*?discussion.*?analysis',
+            'financials': r'item\s*8\s*[\.:\-–—]*\s*financial\s*statements',
+            'controls': r'item\s*9a\s*[\.:\-–—]*\s*controls\s*and\s*procedures'
         }
         
         logger.info("Initialized FilingAnalyzer")
@@ -39,7 +40,7 @@ class FilingAnalyzer:
             logger.warning(f"Unknown section key: {section_key}")
             return None
         
-        # Find section start
+        # Find section start (case-insensitive)
         match = re.search(pattern, text, re.IGNORECASE)
         if not match:
             logger.debug(f"Section '{section_key}' not found in filing")
@@ -47,9 +48,8 @@ class FilingAnalyzer:
         
         start = match.end()
         
-        # Find next section (end boundary)
-        # Look for next "Item X" pattern
-        next_section = re.search(r'Item\s+\d+[A-Z]?[\.\s]', text[start:], re.IGNORECASE)
+        # Find next section (end boundary) using a broad 'Item <number/letter>' pattern
+        next_section = re.search(r'\bitem\s+\d+[a-z]?\b', text[start:], re.IGNORECASE)
         end = start + next_section.start() if next_section else len(text)
         
         section_text = text[start:end].strip()
@@ -73,6 +73,15 @@ class FilingAnalyzer:
             content = self.extract_section(text, section_key)
             if content:
                 sections[section_key] = content
+        
+        # Fallback: if nothing found, try simpler phrase-based extraction for MD&A
+        if not sections:
+            m = re.search(r'management[\u2019\']?s\s+discussion\s+and\s+analysis', text, re.IGNORECASE)
+            if m:
+                start = m.start()
+                nxt = re.search(r'\bitem\s+\d+[a-z]?\b', text[start:], re.IGNORECASE)
+                end = start + nxt.start() if nxt else len(text)
+                sections['mda'] = text[start:end]
         
         logger.info(f"Extracted {len(sections)} sections from filing")
         return sections
@@ -154,6 +163,17 @@ class FilingAnalyzer:
         
         return stats
     
+    def _normalize(self, text: str) -> str:
+        """Normalize filing text for robust regex matching."""
+        if not text:
+            return ''
+        # Replace non-breaking spaces and fancy quotes, collapse whitespace
+        text = text.replace('\xa0', ' ')
+        text = text.replace('\u2019', "'").replace('\u2013', '-').replace('\u2014', '-')
+        # Collapse multiple spaces/newlines
+        text = re.sub(r'[\s\u00A0]+', ' ', text)
+        return text
+
     def analyze_filing(self, filing_text: str, ticker: str, filing_type: str, filing_date: str) -> Dict:
         """
         Perform complete analysis of a filing.
@@ -180,6 +200,9 @@ class FilingAnalyzer:
                 'total_word_count': len(filing_text.split())
             }
         }
+        
+        # Normalize text for better matching
+        filing_text = self._normalize(filing_text)
         
         # Extract all sections
         sections = self.extract_all_sections(filing_text)

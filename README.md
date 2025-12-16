@@ -229,3 +229,19 @@ This is a portfolio project demonstrating:
 ## 📄 License
 
 MIT License
+
+## SEC Filings ETL and Analysis
+
+- The SEC ETL pipeline (sec_etl_pipeline.py) fetches filing metadata and attempts to extract full filing text for forms 10-K/10-Q/8-K.
+- Text extraction depends on SEC document structures; if the primary HTML is not detected, the loader falls back to the complete TXT submission or the index page text.
+- Analysis uses regex-based section detection (Business, Risk Factors, MD&A, Financials) and simple keyword extraction.
+
+### Prerequisites
+- Network access to sec.gov
+- Respect SEC rate limits and provide a valid User-Agent with contact info
+
+### Troubleshooting
+- If analysis shows 0 sections or very small word counts:
+  - Re-run sec_etl_pipeline with a smaller --count and confirm filing_text is populated (check fact_sec_filing.filing_size > 1000)
+  - The extractor now prefers the row whose Type matches 10-K/10-Q; if no HTML is available, it falls back to the TXT submission
+- For RAG demo (rag_demo.py), ensure Ollama is reachable and ChromaDB path is writable before running embedding initialization.

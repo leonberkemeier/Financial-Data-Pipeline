@@ -106,7 +106,7 @@ class FactSECFiling(Base):
     filing_url = Column(String(500))
     
     # Filing content (can be stored as text or reference to file storage)
-    filing_text = Column(String)  # Store extracted text (or NULL for large filings)
+    filing_text = Column(Text)  # Store extracted text (or NULL for large filings)
     filing_size = Column(Integer)  # Size in bytes
     
     # Metadata

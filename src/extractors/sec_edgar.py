@@ -42,6 +42,24 @@ class SECEdgarExtractor:
             time.sleep(self.RATE_LIMIT_DELAY - elapsed)
         self.last_request_time = time.time()
 
+    def _request_with_retry(self, url: str, max_retries: int = 3, timeout: int = 30, **kwargs):
+        """Make HTTP request with retry logic and exponential backoff."""
+        for attempt in range(max_retries):
+            try:
+                self._rate_limit()
+                response = self.session.get(url, timeout=timeout, **kwargs)
+                response.raise_for_status()
+                return response
+            except requests.exceptions.Timeout as e:
+                wait_time = 2 ** attempt  # Exponential backoff: 1s, 2s, 4s
+                if attempt < max_retries - 1:
+                    logger.warning(f"Timeout on attempt {attempt + 1}/{max_retries}, retrying in {wait_time}s...")
+                    time.sleep(wait_time)
+                else:
+                    raise e
+            except Exception as e:
+                raise e
+
     def _get_cik_for_ticker(self, ticker: str) -> Optional[str]:
         """
         Get CIK (Central Index Key) for a ticker symbol.
@@ -56,9 +74,7 @@ class SECEdgarExtractor:
             return self._cik_cache[ticker]
         
         try:
-            self._rate_limit()
-            response = self.session.get(self.COMPANY_TICKERS_URL, timeout=10)
-            response.raise_for_status()
+            response = self._request_with_retry(self.COMPANY_TICKERS_URL, max_retries=3, timeout=30)
             
             tickers_data = response.json()
             
@@ -176,9 +192,7 @@ class SECEdgarExtractor:
             'output': 'atom'
         }
         
-        self._rate_limit()
-        response = self.session.get(submissions_url, params=params, timeout=10)
-        response.raise_for_status()
+        response = self._request_with_retry(submissions_url, max_retries=3, timeout=30, params=params)
         
         # Parse Atom feed
         soup = BeautifulSoup(response.content, 'xml')
@@ -245,70 +259,135 @@ class SECEdgarExtractor:
             
             soup = BeautifulSoup(response.content, 'html.parser')
             
-            # Find the primary document link
-            # Look for the primary HTML document
-            txt_link = None
+            # Find the primary document link robustly
+            primary_href = None
             
-            # Look for the first document table row
-            table = soup.find('table', {'class': 'tableFile'})
+            # The index page typically has a table with class containing 'tableFile'
+            table = soup.find('table', class_=lambda c: c and 'tableFile' in c if c else False)
             if table:
-                rows = table.find_all('tr')[1:]  # Skip header
+                rows = table.find_all('tr')
                 if rows:
-                    # Strategy: find first .htm file that's NOT .txt and NOT an exhibit
-                    for row in rows:
+                    # Identify column indices by header labels
+                    header_cells = [th.get_text(strip=True).lower() for th in rows[0].find_all(['th','td'])]
+                    def col_index(label):
+                        try:
+                            return header_cells.index(label)
+                        except ValueError:
+                            return None
+                    doc_col = col_index('document')
+                    type_col = col_index('type')
+                    desc_col = col_index('description')
+                    
+                    candidate_rows = []
+                    for row in rows[1:]:  # skip header
                         cells = row.find_all('td')
-                        if len(cells) >= 2:
-                            doc_link = cells[2].find('a', href=True) if len(cells) > 2 else None
-                            if not doc_link:
-                                doc_link = row.find('a', href=True)
-                            
-                            if doc_link:
-                                href = doc_link['href']
-                                doc_desc = cells[1].text.strip() if len(cells) > 1 else ''
-                                
-                                # Get first .htm document that's not a .txt file
-                                if (('.htm' in href.lower() or '.html' in href.lower()) and 
-                                    '.txt' not in href.lower() and
-                                    'R1.htm' not in href and
-                                    'R2.htm' not in href and
-                                    'FilingSummary' not in href):
-                                    txt_link = href
-                                    logger.debug(f"Found document: {doc_desc} - {href}")
-                                    break
+                        if not cells:
+                            continue
+                        # Extract href from the Document column (col 2 typically) OR Type column
+                        href = None
+                        # Try Document column first
+                        if doc_col is not None and doc_col < len(cells):
+                            link_tag = cells[doc_col].find('a', href=True)
+                            if link_tag:
+                                # Check if link is an /ix viewer or direct file
+                                potential_href = link_tag['href']
+                                # If it's /ix?doc=... extract the file path from query param
+                                if '/ix?doc=' in potential_href:
+                                    # Extract the doc path - it's already the full archive path
+                                    href_full = potential_href.split('doc=')[1]
+                                    # Ensure it starts with / but doesn't have duplication
+                                    if not href_full.startswith('/'):
+                                        href = '/' + href_full
+                                    else:
+                                        href = href_full
+                                else:
+                                    href = potential_href
+                        # Fall back: try any link in the row
+                        if not href:
+                            link_tag = row.find('a', href=True)
+                            if link_tag:
+                                href = link_tag['href']
+                        if not href:
+                            continue
+                        ftype = cells[type_col].get_text(strip=True) if type_col is not None and type_col < len(cells) else ''
+                        desc = cells[desc_col].get_text(strip=True) if desc_col is not None and desc_col < len(cells) else ''
+                        candidate_rows.append((href, ftype, desc))
+                    
+                    # Selection strategy:
+                    # Prefer the primary HTML document (better formatted), fall back to .txt complete submission
+                    primary_types = {'10-K', '10-Q', '8-K', '10-K/A', '10-Q/A'}
+
+                    # 1) Prefer primary HTML doc by type (10-K, 10-Q, 8-K in .htm/.html format)
+                    for href, ftype, desc in candidate_rows:
+                        lower = href.lower()
+                        if (ftype in primary_types) and (lower.endswith('.htm') or lower.endswith('.html')):
+                            primary_href = href
+                            logger.debug(f"Selected primary HTML doc by type: {ftype} - {href}")
+                            break
+
+                    # 2) Otherwise, pick the first HTML doc that isn't an exhibit or summary
+                    if not primary_href:
+                        for href, ftype, desc in candidate_rows:
+                            lower = href.lower()
+                            if (lower.endswith('.htm') or lower.endswith('.html')) and 'filingsummary' not in lower and 'exhibit' not in desc.lower():
+                                primary_href = href
+                                logger.debug(f"Selected first HTML doc: {desc} - {href}")
+                                break
+
+                    # 3) Otherwise, try .txt complete submission file
+                    if not primary_href:
+                        for href, ftype, desc in candidate_rows:
+                            lower = href.lower()
+                            desc_lower = desc.lower()
+                            if lower.endswith('.txt') and ('complete' in desc_lower or 'submission' in desc_lower):
+                                primary_href = href
+                                logger.debug(f"Selected complete submission text file: {desc} - {href}")
+                                break
+
+                    # 4) Fall back to any .txt file
+                    if not primary_href:
+                        for href, ftype, desc in candidate_rows:
+                            if href.lower().endswith('.txt'):
+                                primary_href = href
+                                logger.debug(f"Selected .txt submission file: {desc} - {href}")
+                                break
             
-            if not txt_link:
+            if not primary_href:
                 logger.warning(f"Could not find document link in filing index: {filing_url}")
                 # Fall back to extracting text from the index page itself
                 for script in soup(["script", "style"]):
                     script.decompose()
                 text = soup.get_text(separator='\n', strip=True)
+                text = text.replace('\xa0', ' ')
                 logger.debug(f"Extracted {len(text)} characters from index page (fallback)")
                 return text
             
             # Construct full URL and fetch the actual document
-            if txt_link.startswith('http'):
-                doc_url = txt_link
+            if primary_href.startswith('http'):
+                doc_url = primary_href
             else:
-                # Build full URL from relative path
                 base_url = '/'.join(filing_url.split('/')[:-1])
-                doc_url = urljoin(base_url + '/', txt_link)
+                doc_url = urljoin(base_url + '/', primary_href)
             
             logger.debug(f"Fetching document from: {doc_url}")
             self._rate_limit()
-            doc_response = self.session.get(doc_url, timeout=15)
+            doc_response = self.session.get(doc_url, timeout=30)
             doc_response.raise_for_status()
             
-            # Parse the document
-            doc_soup = BeautifulSoup(doc_response.content, 'html.parser')
+            content_type = doc_response.headers.get('Content-Type', '').lower()
+            if 'text/plain' in content_type or doc_url.lower().endswith('.txt'):
+                text = doc_response.text
+                text = text.replace('\xa0', ' ')
+                logger.debug(f"Extracted {len(text)} characters from TXT filing document")
+                return text
             
-            # Remove script and style elements
+            # Parse the HTML document
+            doc_soup = BeautifulSoup(doc_response.content, 'html.parser')
             for script in doc_soup(["script", "style"]):
                 script.decompose()
-            
-            # Get text
             text = doc_soup.get_text(separator='\n', strip=True)
-            
-            logger.debug(f"Extracted {len(text)} characters from filing document")
+            text = text.replace('\xa0', ' ')
+            logger.debug(f"Extracted {len(text)} characters from HTML filing document")
             return text
             
         except Exception as e:

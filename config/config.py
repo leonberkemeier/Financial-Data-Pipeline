@@ -12,7 +12,7 @@ DATA_DIR = BASE_DIR / "data"
 LOGS_DIR = BASE_DIR / "logs"
 
 # Database configuration
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://localhost:5432/financial_data")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@localhost:5432/financial_data") # Replace with your actual password
 
 # API Configuration
 ALPHA_VANTAGE_API_KEY = os.getenv("ALPHA_VANTAGE_API_KEY")
