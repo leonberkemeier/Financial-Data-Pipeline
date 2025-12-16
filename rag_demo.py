@@ -8,6 +8,7 @@ This script demonstrates a complete RAG system that:
 """
 import sys
 import argparse
+import time
 from loguru import logger
 from sqlalchemy import create_engine, text
 import pandas as pd
@@ -15,6 +16,7 @@ from typing import List, Dict
 import ollama
 import chromadb
 from chromadb.config import Settings
+import requests
 
 from config.config import (
     DATABASE_URL, 
@@ -38,8 +40,17 @@ class RAGSystem:
         self.engine = create_engine(DATABASE_URL)
         
         # Ollama client (via Tailscale)
-        self.ollama_client = ollama.Client(host=OLLAMA_HOST)
-        logger.info(f"Connected to Ollama at {OLLAMA_HOST}")
+        # Note: Using requests directly to avoid localhost resolution issues
+        self.ollama_host = OLLAMA_HOST.rstrip('/')
+        logger.info(f"Connected to Ollama at {self.ollama_host}")
+        
+        # Verify connection
+        try:
+            response = requests.get(f"{self.ollama_host}/api/tags", timeout=5)
+            response.raise_for_status()
+            logger.info(f"✓ Ollama server is reachable")
+        except Exception as e:
+            logger.warning(f"Could not verify Ollama connection: {e}")
         
         # ChromaDB for vector storage
         self.chroma_client = chromadb.PersistentClient(
@@ -118,51 +129,77 @@ class RAGSystem:
             # Create chunks from sections
             chunks_created = 0
             for section_name, section_text in sections.items():
-                # Split long sections into chunks (max ~1000 words)
+                # Split into small chunks to handle Ollama limits
+                # Reduced to 50 words per chunk (~250-400 chars) to avoid server errors
                 words = section_text.split()
-                chunk_size = 1000
+                chunk_size = 50  # Reduced for stability
                 
                 for i in range(0, len(words), chunk_size):
                     chunk_text = " ".join(words[i:i+chunk_size])
                     
-                    if len(chunk_text) < 100:  # Skip very small chunks
+                    # Skip very small chunks
+                    if len(chunk_text) < 50:
                         continue
+                    
+                    # Limit chunk size BEFORE normalization
+                    if len(chunk_text) > 500:
+                        chunk_text = chunk_text[:500]
+                    
+                    # Sanitize text - remove special Unicode characters
+                    chunk_text = self.analyzer._normalize(chunk_text)
                     
                     chunk_id = f"{filing['ticker']}_{filing['filing_date']}_{section_name}_{i}"
                     
-                    # Generate embedding using Ollama
-                    try:
-                        response = self.ollama_client.embeddings(
-                            model=RAG_EMBEDDING_MODEL,
-                            prompt=chunk_text
-                        )
-                        embedding = response['embedding']
-                        
-                        # Store in ChromaDB
-                        self.collection.add(
-                            ids=[chunk_id],
-                            embeddings=[embedding],
-                            documents=[chunk_text],
-                            metadatas=[{
-                                'ticker': filing['ticker'],
-                                'filing_type': filing['filing_type'],
-                                'filing_date': str(filing['filing_date']),
-                                'section': section_name,
-                                'filing_url': filing['filing_url'],
-                                'chunk_index': i // chunk_size
-                            }]
-                        )
-                        
-                        total_chunks += 1
-                        chunks_created += 1
-                        
-                        # Log progress every 50 chunks
-                        if chunks_created % 50 == 0:
-                            logger.info(f"    Created {chunks_created} embeddings...")
-                        
-                    except Exception as e:
-                        logger.error(f"  Error creating embedding: {str(e)}")
-                        continue
+                    # Generate embedding with retry logic
+                    embedding = None
+                    max_retries = 3
+                    for retry in range(max_retries):
+                        try:
+                            response = requests.post(
+                                f"{self.ollama_host}/api/embeddings",
+                                json={"model": RAG_EMBEDDING_MODEL, "prompt": chunk_text},
+                                timeout=30
+                            )
+                            response.raise_for_status()
+                            embedding = response.json()['embedding']
+                            break  # Success, exit retry loop
+                        except (requests.exceptions.Timeout, requests.exceptions.ConnectionError, requests.exceptions.HTTPError) as e:
+                            if retry < max_retries - 1:
+                                wait_time = 2 ** retry  # Exponential backoff: 1s, 2s, 4s
+                                logger.debug(f"  Retry {retry + 1}/{max_retries} after {wait_time}s...")
+                                time.sleep(wait_time)
+                                continue
+                            else:
+                                logger.error(f"  Failed after {max_retries} retries: {e}")
+                                break  # Skip this chunk
+                    
+                    # Only store if we got an embedding
+                    if embedding is not None:
+                        try:
+                            # Store in ChromaDB
+                            self.collection.add(
+                                ids=[chunk_id],
+                                embeddings=[embedding],
+                                documents=[chunk_text],
+                                metadatas=[{
+                                    'ticker': filing['ticker'],
+                                    'filing_type': filing['filing_type'],
+                                    'filing_date': str(filing['filing_date']),
+                                    'section': section_name,
+                                    'filing_url': filing['filing_url'],
+                                    'chunk_index': i // chunk_size
+                                }]
+                            )
+                            
+                            total_chunks += 1
+                            chunks_created += 1
+                            
+                            # Log progress every 50 chunks
+                            if chunks_created % 50 == 0:
+                                logger.info(f"    Created {chunks_created} embeddings...")
+                        except Exception as e:
+                            logger.error(f"  Error storing embedding: {str(e)}")
+                            continue
             
             logger.info(f"  Created {chunks_created} chunks from {len(sections)} section(s)")
         
@@ -185,11 +222,13 @@ class RAGSystem:
         
         # Generate embedding for the question
         try:
-            response = self.ollama_client.embeddings(
-                model=RAG_EMBEDDING_MODEL,
-                prompt=question
+            response = requests.post(
+                f"{self.ollama_host}/api/embeddings",
+                json={"model": RAG_EMBEDDING_MODEL, "prompt": question},
+                timeout=60
             )
-            question_embedding = response['embedding']
+            response.raise_for_status()
+            question_embedding = response.json()['embedding']
         except Exception as e:
             logger.error(f"Error generating question embedding: {str(e)}")
             return {'answer': f"Error: Could not connect to Ollama at {OLLAMA_HOST}", 'sources': []}
@@ -238,11 +277,13 @@ Answer (be concise and specific, citing sources):"""
             print(f"\n🤖 Generating answer using {RAG_LLM_MODEL}...")
         
         try:
-            response = self.ollama_client.generate(
-                model=RAG_LLM_MODEL,
-                prompt=prompt
+            response = requests.post(
+                f"{self.ollama_host}/api/generate",
+                json={"model": RAG_LLM_MODEL, "prompt": prompt, "stream": False},
+                timeout=300
             )
-            answer = response['response']
+            response.raise_for_status()
+            answer = response.json()['response']
         except Exception as e:
             logger.error(f"Error generating answer: {str(e)}")
             return {
