@@ -70,8 +70,9 @@ class FREDBondExtractor:
                 series_id = period_mapping.get(period, period)
                 logger.debug(f"Fetching treasury data for {period}")
                 
-                url = f"{self.base_url}/series/{series_id}/observations"
+                url = f"{self.base_url}/series/observations"
                 params = {
+                    "series_id": series_id,
                     "api_key": self.api_key,
                     "file_type": "json"
                 }
@@ -150,8 +151,9 @@ class FREDBondExtractor:
             try:
                 logger.debug(f"Fetching {spread_name}")
                 
-                url = f"{self.base_url}/series/{series_id}/observations"
+                url = f"{self.base_url}/series/observations"
                 params = {
+                    "series_id": series_id,
                     "api_key": self.api_key,
                     "file_type": "json"
                 }
@@ -241,8 +243,9 @@ class FREDBondExtractor:
                 
                 logger.debug(f"Fetching corporate yields for {rating}")
                 
-                url = f"{self.base_url}/series/{series_id}/observations"
+                url = f"{self.base_url}/series/observations"
                 params = {
+                    "series_id": series_id,
                     "api_key": self.api_key,
                     "file_type": "json"
                 }
