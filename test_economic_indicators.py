@@ -1,7 +1,11 @@
 """Demo script for economic indicators."""
 import os
 from datetime import datetime, timedelta
+from dotenv import load_dotenv
 from loguru import logger
+
+# Load environment variables from .env file
+load_dotenv()
 
 from src.extractors.economic_indicators import EconomicIndicatorsExtractor
 

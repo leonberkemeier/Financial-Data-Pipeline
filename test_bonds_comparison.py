@@ -1,7 +1,11 @@
 """Test script to compare bond data from FRED and Yahoo Finance."""
 import os
 from datetime import datetime, timedelta
+from dotenv import load_dotenv
 from loguru import logger
+
+# Load environment variables from .env file
+load_dotenv()
 
 from src.extractors.fred_bond import FREDBondExtractor
 from src.extractors.yahoo_bond import YahooBondExtractor
