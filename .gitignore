@@ -17,6 +17,8 @@ __pycache__/
 # Logs
 logs/*.log
 
+Resume.md
+
 # Data
 data/*.csv
 data/*.parquet

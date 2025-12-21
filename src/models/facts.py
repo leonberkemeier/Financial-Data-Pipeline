@@ -177,3 +177,81 @@ class FactFilingAnalysis(Base):
 
     def __repr__(self):
         return f"<FactFilingAnalysis(filing_id={self.filing_id}, sections={self.sections_found})>"
+
+
+class FactCryptoPrice(Base):
+    """Cryptocurrency price fact table - crypto center of star schema."""
+    __tablename__ = "fact_crypto_price"
+
+    # Primary key
+    crypto_price_id = Column(Integer, primary_key=True, autoincrement=True)
+
+    # Foreign keys to dimension tables
+    crypto_id = Column(Integer, ForeignKey("dim_crypto_asset.crypto_id"), nullable=False, index=True)
+    date_id = Column(Integer, ForeignKey("dim_date.date_id"), nullable=False, index=True)
+    source_id = Column(Integer, ForeignKey("dim_data_source.source_id"), nullable=False, index=True)
+
+    # Metrics
+    price = Column(Numeric(18, 8), nullable=False)  # Current price in USD
+    market_cap = Column(BigInteger)  # Total market cap in USD
+    trading_volume = Column(BigInteger)  # 24h trading volume
+    circulating_supply = Column(Numeric(20, 8))  # Number of coins in circulation
+    total_supply = Column(Numeric(20, 8))  # Total coins that exist
+    price_change_24h = Column(Numeric(8, 4))  # Price change % in 24h
+    price_change_7d = Column(Numeric(8, 4))  # Price change % in 7d
+    
+    # Metadata
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    crypto = relationship("DimCryptoAsset")
+    date = relationship("DimDate")
+    source = relationship("DimDataSource")
+
+    # Ensure uniqueness: one price record per crypto per date per source
+    __table_args__ = (
+        UniqueConstraint('crypto_id', 'date_id', 'source_id', name='uix_crypto_date_source'),
+        {"sqlite_autoincrement": True},
+    )
+
+    def __repr__(self):
+        return f"<FactCryptoPrice(crypto_id={self.crypto_id}, date_id={self.date_id}, price={self.price})>"
+
+
+class FactBondPrice(Base):
+    """Bond price and yield fact table."""
+    __tablename__ = "fact_bond_price"
+
+    # Primary key
+    bond_price_id = Column(Integer, primary_key=True, autoincrement=True)
+
+    # Foreign keys
+    bond_id = Column(Integer, ForeignKey("dim_bond.bond_id"), nullable=False, index=True)
+    date_id = Column(Integer, ForeignKey("dim_date.date_id"), nullable=False, index=True)
+    source_id = Column(Integer, ForeignKey("dim_data_source.source_id"), nullable=False, index=True)
+
+    # Metrics
+    price = Column(Numeric(8, 4), nullable=False)  # Bond price (as % of par)
+    yield_percent = Column(Numeric(8, 4), nullable=False)  # Yield to maturity
+    spread = Column(Numeric(8, 4))  # Spread over benchmark (in basis points)
+    duration = Column(Numeric(6, 2))  # Modified duration in years
+    convexity = Column(Numeric(8, 4))  # Convexity measure
+    bid_ask_spread = Column(Numeric(6, 4))  # Bid-ask spread
+    
+    # Metadata
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    bond = relationship("DimBond")
+    date = relationship("DimDate")
+    source = relationship("DimDataSource")
+
+    __table_args__ = (
+        UniqueConstraint('bond_id', 'date_id', 'source_id', name='uix_bond_date_source'),
+        {"sqlite_autoincrement": True},
+    )
+
+    def __repr__(self):
+        return f"<FactBondPrice(bond_id={self.bond_id}, date_id={self.date_id}, yield={self.yield_percent})>"

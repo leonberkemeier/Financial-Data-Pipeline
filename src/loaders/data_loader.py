@@ -7,7 +7,9 @@ from loguru import logger
 
 from src.models import (
     DimCompany, DimDate, DimExchange, DimDataSource,
-    FactStockPrice, FactCompanyMetrics
+    FactStockPrice, FactCompanyMetrics,
+    DimCryptoAsset, FactCryptoPrice,
+    DimIssuer, DimBond, FactBondPrice
 )
 
 
@@ -215,4 +217,223 @@ class DataLoader:
             logger.debug(f"Committed batch {i//batch_size + 1}")
         
         logger.info(f"Loaded {records_loaded} new stock price records")
+        return records_loaded
+
+    def load_crypto_assets(self, crypto_df: pd.DataFrame) -> Dict[str, int]:
+        """
+        Load cryptocurrency asset dimension data.
+
+        Args:
+            crypto_df: DataFrame with crypto asset data
+
+        Returns:
+            Dictionary mapping symbol to crypto_id
+        """
+        logger.info(f"Loading {len(crypto_df)} crypto assets")
+        
+        crypto_mapping = {}
+        
+        for _, row in crypto_df.iterrows():
+            # Check if exists
+            crypto = self.db.execute(
+                select(DimCryptoAsset).where(DimCryptoAsset.symbol == row['symbol'])
+            ).scalar_one_or_none()
+            
+            if crypto:
+                # Update existing
+                crypto.name = row.get('name', crypto.name)
+                crypto.chain = row.get('chain', crypto.chain)
+                crypto.description = row.get('description', crypto.description)
+                logger.debug(f"Updated crypto asset: {row['symbol']}")
+            else:
+                # Create new
+                crypto = DimCryptoAsset(
+                    symbol=row['symbol'],
+                    name=row.get('name', row['symbol']),
+                    chain=row.get('chain'),
+                    description=row.get('description'),
+                    country=row.get('country')
+                )
+                self.db.add(crypto)
+                logger.debug(f"Created crypto asset: {row['symbol']}")
+            
+            self.db.commit()
+            self.db.refresh(crypto)
+            crypto_mapping[row['symbol']] = crypto.crypto_id
+        
+        logger.info(f"Loaded {len(crypto_mapping)} crypto assets")
+        return crypto_mapping
+
+    def load_crypto_prices(self, price_df: pd.DataFrame, batch_size: int = 1000) -> int:
+        """
+        Load cryptocurrency price fact data.
+
+        Args:
+            price_df: DataFrame with crypto price data
+            batch_size: Number of records to insert per batch
+
+        Returns:
+            Number of records loaded
+        """
+        logger.info(f"Loading {len(price_df)} crypto price records")
+        
+        records_loaded = 0
+        
+        for i in range(0, len(price_df), batch_size):
+            batch = price_df.iloc[i:i+batch_size]
+            
+            for _, row in batch.iterrows():
+                existing = self.db.execute(
+                    select(FactCryptoPrice).where(
+                        FactCryptoPrice.crypto_id == row['crypto_id'],
+                        FactCryptoPrice.date_id == row['date_id'],
+                        FactCryptoPrice.source_id == row['source_id']
+                    )
+                ).scalar_one_or_none()
+                
+                if existing:
+                    for col in price_df.columns:
+                        if col not in ['crypto_id', 'date_id', 'source_id'] and col in row:
+                            setattr(existing, col, row[col])
+                    logger.debug(f"Updated crypto price record")
+                else:
+                    price_record = FactCryptoPrice(**row.to_dict())
+                    self.db.add(price_record)
+                    records_loaded += 1
+            
+            self.db.commit()
+            logger.debug(f"Committed batch {i//batch_size + 1}")
+        
+        logger.info(f"Loaded {records_loaded} new crypto price records")
+        return records_loaded
+
+    def load_issuer(self, issuer_df: pd.DataFrame) -> Dict[str, int]:
+        """
+        Load bond issuer dimension data.
+
+        Args:
+            issuer_df: DataFrame with issuer data
+
+        Returns:
+            Dictionary mapping issuer_name to issuer_id
+        """
+        logger.info(f"Loading {len(issuer_df)} issuers")
+        
+        issuer_mapping = {}
+        
+        for _, row in issuer_df.iterrows():
+            issuer = self.db.execute(
+                select(DimIssuer).where(DimIssuer.issuer_name == row['issuer_name'])
+            ).scalar_one_or_none()
+            
+            if issuer:
+                issuer.issuer_type = row.get('issuer_type', issuer.issuer_type)
+                issuer.country = row.get('country', issuer.country)
+                issuer.credit_rating = row.get('credit_rating', issuer.credit_rating)
+                issuer.sector = row.get('sector', issuer.sector)
+                logger.debug(f"Updated issuer: {row['issuer_name']}")
+            else:
+                issuer = DimIssuer(
+                    issuer_name=row['issuer_name'],
+                    issuer_type=row.get('issuer_type', 'Unknown'),
+                    country=row.get('country'),
+                    credit_rating=row.get('credit_rating'),
+                    sector=row.get('sector')
+                )
+                self.db.add(issuer)
+                logger.debug(f"Created issuer: {row['issuer_name']}")
+            
+            self.db.commit()
+            self.db.refresh(issuer)
+            issuer_mapping[row['issuer_name']] = issuer.issuer_id
+        
+        logger.info(f"Loaded {len(issuer_mapping)} issuers")
+        return issuer_mapping
+
+    def load_bonds(self, bond_df: pd.DataFrame) -> Dict[str, int]:
+        """
+        Load bond dimension data.
+
+        Args:
+            bond_df: DataFrame with bond data
+
+        Returns:
+            Dictionary mapping ISIN to bond_id
+        """
+        logger.info(f"Loading {len(bond_df)} bonds")
+        
+        bond_mapping = {}
+        
+        for _, row in bond_df.iterrows():
+            bond = self.db.execute(
+                select(DimBond).where(DimBond.isin == row['isin'])
+            ).scalar_one_or_none()
+            
+            if bond:
+                bond.bond_type = row.get('bond_type', bond.bond_type)
+                bond.maturity_date = row.get('maturity_date', bond.maturity_date)
+                bond.coupon_rate = row.get('coupon_rate', bond.coupon_rate)
+                logger.debug(f"Updated bond: {row['isin']}")
+            else:
+                bond = DimBond(
+                    isin=row['isin'],
+                    issuer_id=row['issuer_id'],
+                    bond_type=row.get('bond_type'),
+                    maturity_date=row.get('maturity_date'),
+                    coupon_rate=row.get('coupon_rate'),
+                    currency=row.get('currency', 'USD'),
+                    country=row.get('country'),
+                    description=row.get('description')
+                )
+                self.db.add(bond)
+                logger.debug(f"Created bond: {row['isin']}")
+            
+            self.db.commit()
+            self.db.refresh(bond)
+            bond_mapping[row['isin']] = bond.bond_id
+        
+        logger.info(f"Loaded {len(bond_mapping)} bonds")
+        return bond_mapping
+
+    def load_bond_prices(self, price_df: pd.DataFrame, batch_size: int = 1000) -> int:
+        """
+        Load bond price fact data.
+
+        Args:
+            price_df: DataFrame with bond price data
+            batch_size: Number of records to insert per batch
+
+        Returns:
+            Number of records loaded
+        """
+        logger.info(f"Loading {len(price_df)} bond price records")
+        
+        records_loaded = 0
+        
+        for i in range(0, len(price_df), batch_size):
+            batch = price_df.iloc[i:i+batch_size]
+            
+            for _, row in batch.iterrows():
+                existing = self.db.execute(
+                    select(FactBondPrice).where(
+                        FactBondPrice.bond_id == row['bond_id'],
+                        FactBondPrice.date_id == row['date_id'],
+                        FactBondPrice.source_id == row['source_id']
+                    )
+                ).scalar_one_or_none()
+                
+                if existing:
+                    for col in price_df.columns:
+                        if col not in ['bond_id', 'date_id', 'source_id'] and col in row:
+                            setattr(existing, col, row[col])
+                    logger.debug(f"Updated bond price record")
+                else:
+                    price_record = FactBondPrice(**row.to_dict())
+                    self.db.add(price_record)
+                    records_loaded += 1
+            
+            self.db.commit()
+            logger.debug(f"Committed batch {i//batch_size + 1}")
+        
+        logger.info(f"Loaded {records_loaded} new bond price records")
         return records_loaded

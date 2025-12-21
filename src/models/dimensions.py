@@ -1,5 +1,5 @@
 """Dimension tables for the star schema."""
-from sqlalchemy import Column, Integer, String, Date, DateTime
+from sqlalchemy import Column, Integer, String, Date, DateTime, ForeignKey, Numeric
 from sqlalchemy.sql import func
 from .base import Base
 
@@ -84,3 +84,57 @@ class DimFilingType(Base):
 
     def __repr__(self):
         return f"<DimFilingType(type={self.filing_type})>"
+
+
+class DimCryptoAsset(Base):
+    """Cryptocurrency asset dimension table."""
+    __tablename__ = "dim_crypto_asset"
+
+    crypto_id = Column(Integer, primary_key=True, autoincrement=True)
+    symbol = Column(String(20), unique=True, nullable=False, index=True)  # BTC, ETH, etc.
+    name = Column(String(255), nullable=False)  # Bitcoin, Ethereum, etc.
+    chain = Column(String(100))  # Blockchain (Ethereum, Bitcoin, Polygon, etc.)
+    description = Column(String(500))
+    country = Column(String(50))  # Country of origin if applicable
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    def __repr__(self):
+        return f"<DimCryptoAsset(symbol={self.symbol}, name={self.name})>"
+
+
+class DimIssuer(Base):
+    """Bond issuer dimension table."""
+    __tablename__ = "dim_issuer"
+
+    issuer_id = Column(Integer, primary_key=True, autoincrement=True)
+    issuer_name = Column(String(255), nullable=False, unique=True, index=True)
+    issuer_type = Column(String(50), nullable=False)  # Government, Corporate, Municipal, etc.
+    country = Column(String(50))
+    credit_rating = Column(String(20))  # AAA, AA, A, BBB, etc.
+    sector = Column(String(100))  # For corporate issuers
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    def __repr__(self):
+        return f"<DimIssuer(name={self.issuer_name}, type={self.issuer_type})>"
+
+
+class DimBond(Base):
+    """Bond dimension table."""
+    __tablename__ = "dim_bond"
+
+    bond_id = Column(Integer, primary_key=True, autoincrement=True)
+    isin = Column(String(20), unique=True, nullable=False, index=True)  # International Securities ID
+    issuer_id = Column(Integer, ForeignKey("dim_issuer.issuer_id"), nullable=False, index=True)
+    bond_type = Column(String(50), nullable=False)  # Government, Corporate, Treasury, etc.
+    maturity_date = Column(DateTime(timezone=True))  # When bond matures
+    coupon_rate = Column(Numeric(6, 4))  # Annual coupon as percentage
+    currency = Column(String(3), default='USD')  # Currency of the bond
+    country = Column(String(50))  # Issuing country
+    description = Column(String(500))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    def __repr__(self):
+        return f"<DimBond(isin={self.isin}, type={self.bond_type})>"

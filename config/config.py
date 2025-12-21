@@ -27,6 +27,20 @@ TICKERS = [
     "META", "NVDA", "JPM", "V", "WMT"
 ]
 
+# Cryptocurrency Configuration
+CRYPTO_SYMBOLS = os.getenv("CRYPTO_SYMBOLS", "BTC,ETH,ADA,SOL,DOGE,XRP,DOT,MATIC").split(",")
+
+# Bond Configuration
+BOND_TYPES = [
+    "US_3MO", "US_1Y", "US_2Y", "US_5Y", "US_10Y", "US_30Y"
+]
+CORPORATE_BOND_RATINGS = [
+    "AAA", "AA", "A", "BBB", "BB", "B", "CCC"
+]
+
+# FRED API Configuration (for bond data)
+FRED_API_KEY = os.getenv("FRED_API_KEY")
+
 # Ollama Configuration (for RAG demo)
 OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
 

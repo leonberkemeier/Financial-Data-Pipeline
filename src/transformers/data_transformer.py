@@ -194,3 +194,238 @@ class DataTransformer:
             return False, f"Missing required columns: {missing_columns}"
         
         return True, "Valid"
+
+    @staticmethod
+    def transform_crypto_dimension(crypto_df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Transform cryptocurrency data into crypto dimension format.
+
+        Args:
+            crypto_df: DataFrame with raw crypto data
+
+        Returns:
+            DataFrame with crypto dimension attributes
+        """
+        logger.info("Transforming crypto dimension")
+        
+        # Select and rename columns
+        transformed = crypto_df[[
+            'symbol', 'name', 'chain', 'description'
+        ]].copy()
+        
+        # Clean data
+        transformed = transformed.fillna({
+            'name': 'Unknown',
+            'chain': 'Unknown',
+            'description': ''
+        })
+        
+        # Remove duplicates
+        transformed = transformed.drop_duplicates(subset=['symbol'])
+        
+        logger.info(f"Transformed {len(transformed)} crypto asset records")
+        return transformed
+
+    @staticmethod
+    def transform_crypto_prices(
+        price_df: pd.DataFrame,
+        crypto_mapping: Dict[str, int],
+        date_mapping: Dict,
+        source_id: int
+    ) -> pd.DataFrame:
+        """
+        Transform crypto price data into fact table format.
+
+        Args:
+            price_df: DataFrame with raw crypto price data
+            crypto_mapping: Dict mapping symbol to crypto_id
+            date_mapping: Dict mapping date to date_id
+            source_id: ID of the data source
+
+        Returns:
+            DataFrame with fact table attributes
+        """
+        logger.info("Transforming crypto price facts")
+        
+        transformed = price_df.copy()
+        
+        # Map foreign keys
+        transformed['crypto_id'] = transformed['symbol'].map(crypto_mapping)
+        
+        # Handle date mapping - convert various date formats to date objects
+        def get_date_id(x):
+            if isinstance(x, str):
+                date_obj = pd.to_datetime(x).date()
+            elif isinstance(x, pd.Timestamp):
+                date_obj = x.date()
+            elif isinstance(x, str):
+                date_obj = pd.to_datetime(x).date()
+            else:
+                date_obj = x  # Assume it's already a date object
+            return date_mapping.get(date_obj)
+        
+        transformed['date_id'] = transformed['date'].apply(get_date_id)
+        transformed['source_id'] = source_id
+        
+        # Select and rename columns for fact table
+        fact_columns = {
+            'crypto_id': 'crypto_id',
+            'date_id': 'date_id',
+            'source_id': 'source_id',
+            'price': 'price',
+            'market_cap': 'market_cap',
+            'volume': 'trading_volume',
+            'circulating_supply': 'circulating_supply',
+            'total_supply': 'total_supply'
+        }
+        
+        # Keep only columns that exist
+        available_columns = {k: v for k, v in fact_columns.items() if k in transformed.columns}
+        transformed = transformed.rename(columns=available_columns)
+        transformed = transformed[list(available_columns.values())]
+        
+        # Remove rows with missing required fields
+        transformed = transformed.dropna(subset=['crypto_id', 'date_id', 'price'])
+        
+        # Ensure integer IDs
+        transformed['crypto_id'] = transformed['crypto_id'].astype(int)
+        transformed['date_id'] = transformed['date_id'].astype(int)
+        transformed['source_id'] = int(source_id)
+        
+        logger.info(f"Transformed {len(transformed)} crypto price records")
+        return transformed
+
+    @staticmethod
+    def transform_issuer_dimension(issuer_df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Transform issuer data into issuer dimension format.
+
+        Args:
+            issuer_df: DataFrame with issuer data
+
+        Returns:
+            DataFrame with issuer dimension attributes
+        """
+        logger.info("Transforming issuer dimension")
+        
+        transformed = issuer_df[[
+            'issuer_name', 'issuer_type', 'country', 'credit_rating', 'sector'
+        ]].copy()
+        
+        transformed = transformed.fillna({
+            'issuer_type': 'Unknown',
+            'country': 'Unknown',
+            'credit_rating': 'NR',
+            'sector': 'General'
+        })
+        
+        transformed = transformed.drop_duplicates(subset=['issuer_name'])
+        
+        logger.info(f"Transformed {len(transformed)} issuer records")
+        return transformed
+
+    @staticmethod
+    def transform_bond_dimension(
+        bond_df: pd.DataFrame,
+        issuer_mapping: Dict[str, int]
+    ) -> pd.DataFrame:
+        """
+        Transform bond data into bond dimension format.
+
+        Args:
+            bond_df: DataFrame with raw bond data
+            issuer_mapping: Dict mapping issuer_name to issuer_id
+
+        Returns:
+            DataFrame with bond dimension attributes
+        """
+        logger.info("Transforming bond dimension")
+        
+        transformed = bond_df[[
+            'isin', 'issuer_name', 'bond_type', 'maturity_date', 'coupon_rate', 'currency', 'country'
+        ]].copy()
+        
+        # Map issuer IDs
+        transformed['issuer_id'] = transformed['issuer_name'].map(issuer_mapping)
+        
+        # Convert maturity_date to datetime if needed
+        if 'maturity_date' in transformed.columns:
+            transformed['maturity_date'] = pd.to_datetime(transformed['maturity_date'])
+        
+        transformed = transformed.fillna({
+            'bond_type': 'Unknown',
+            'coupon_rate': 0.0,
+            'currency': 'USD',
+            'country': 'Unknown'
+        })
+        
+        # Select relevant columns
+        transformed = transformed[[
+            'isin', 'issuer_id', 'bond_type', 'maturity_date', 'coupon_rate', 'currency', 'country'
+        ]]
+        
+        transformed = transformed.drop_duplicates(subset=['isin'])
+        
+        logger.info(f"Transformed {len(transformed)} bond records")
+        return transformed
+
+    @staticmethod
+    def transform_bond_prices(
+        price_df: pd.DataFrame,
+        bond_mapping: Dict[str, int],
+        date_mapping: Dict,
+        source_id: int
+    ) -> pd.DataFrame:
+        """
+        Transform bond price data into fact table format.
+
+        Args:
+            price_df: DataFrame with raw bond price data
+            bond_mapping: Dict mapping ISIN to bond_id
+            date_mapping: Dict mapping date to date_id
+            source_id: ID of the data source
+
+        Returns:
+            DataFrame with fact table attributes
+        """
+        logger.info("Transforming bond price facts")
+        
+        transformed = price_df.copy()
+        
+        # Map foreign keys
+        if 'isin' in transformed.columns:
+            transformed['bond_id'] = transformed['isin'].map(bond_mapping)
+        else:
+            logger.warning("No ISIN column found in bond price data")
+            return pd.DataFrame()
+        
+        transformed['date_id'] = transformed['date'].apply(
+            lambda x: date_mapping.get(pd.to_datetime(x).date()) if isinstance(x, str) else date_mapping.get(x)
+        )
+        transformed['source_id'] = source_id
+        
+        # Select and rename columns for fact table
+        fact_columns = {
+            'bond_id': 'bond_id',
+            'date_id': 'date_id',
+            'source_id': 'source_id',
+            'price': 'price',
+            'yield': 'yield_percent',
+            'spread': 'spread',
+            'duration': 'duration'
+        }
+        
+        available_columns = {k: v for k, v in fact_columns.items() if k in transformed.columns}
+        transformed = transformed.rename(columns=available_columns)
+        transformed = transformed[list(available_columns.values())]
+        
+        # Remove rows with missing required fields
+        transformed = transformed.dropna(subset=['bond_id', 'date_id', 'price', 'yield_percent'])
+        
+        # Ensure integer IDs
+        transformed['bond_id'] = transformed['bond_id'].astype(int)
+        transformed['date_id'] = transformed['date_id'].astype(int)
+        transformed['source_id'] = int(source_id)
+        
+        logger.info(f"Transformed {len(transformed)} bond price records")
+        return transformed
