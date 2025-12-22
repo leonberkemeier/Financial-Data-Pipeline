@@ -429,3 +429,99 @@ class DataTransformer:
         
         logger.info(f"Transformed {len(transformed)} bond price records")
         return transformed
+
+    @staticmethod
+    def transform_economic_indicator_dimension(indicator_df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Transform economic indicator data into indicator dimension format.
+
+        Args:
+            indicator_df: DataFrame with raw economic indicator metadata
+
+        Returns:
+            DataFrame with indicator dimension attributes
+        """
+        logger.info("Transforming economic indicator dimension")
+        
+        transformed = indicator_df[[
+            'indicator', 'indicator_name', 'category', 'unit', 'frequency'
+        ]].copy()
+        
+        # Rename for database column names
+        transformed = transformed.rename(columns={'indicator': 'indicator_code'})
+        
+        # Clean data
+        transformed = transformed.fillna({
+            'category': 'General',
+            'unit': 'Number',
+            'frequency': 'Unknown'
+        })
+        
+        # Remove duplicates
+        transformed = transformed.drop_duplicates(subset=['indicator_code'])
+        
+        logger.info(f"Transformed {len(transformed)} economic indicator records")
+        return transformed
+
+    @staticmethod
+    def transform_economic_data(
+        data_df: pd.DataFrame,
+        indicator_mapping: Dict[str, int],
+        date_mapping: Dict,
+        source_id: int
+    ) -> pd.DataFrame:
+        """
+        Transform economic indicator data into fact table format.
+
+        Args:
+            data_df: DataFrame with raw economic data
+            indicator_mapping: Dict mapping indicator_code to indicator_id
+            date_mapping: Dict mapping date to date_id
+            source_id: ID of the data source
+
+        Returns:
+            DataFrame with fact table attributes
+        """
+        logger.info("Transforming economic data facts")
+        
+        transformed = data_df.copy()
+        
+        # Map foreign keys
+        transformed['indicator_id'] = transformed['indicator'].map(indicator_mapping)
+        
+        # Handle date mapping
+        def get_date_id(x):
+            if isinstance(x, str):
+                date_obj = pd.to_datetime(x).date()
+            elif isinstance(x, pd.Timestamp):
+                date_obj = x.date()
+            else:
+                date_obj = x
+            return date_mapping.get(date_obj)
+        
+        transformed['date_id'] = transformed['date'].apply(get_date_id)
+        transformed['source_id'] = source_id
+        
+        # Select and rename columns for fact table
+        fact_columns = {
+            'indicator_id': 'indicator_id',
+            'date_id': 'date_id',
+            'source_id': 'source_id',
+            'value': 'value'
+        }
+        
+        # Keep only columns that exist
+        available_columns = {k: v for k, v in fact_columns.items() if k in transformed.columns}
+        transformed = transformed.rename(columns=available_columns)
+        transformed = transformed[list(available_columns.values())]
+        
+        # Remove rows with missing required fields
+        transformed = transformed.dropna(subset=['indicator_id', 'date_id', 'value'])
+        
+        # Ensure integer IDs
+        transformed['indicator_id'] = transformed['indicator_id'].astype(int)
+        transformed['date_id'] = transformed['date_id'].astype(int)
+        transformed['source_id'] = int(source_id)
+        
+        logger.info(f"Transformed {len(transformed)} economic data records")
+        return transformed

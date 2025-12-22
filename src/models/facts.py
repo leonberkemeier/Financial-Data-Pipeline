@@ -255,3 +255,41 @@ class FactBondPrice(Base):
 
     def __repr__(self):
         return f"<FactBondPrice(bond_id={self.bond_id}, date_id={self.date_id}, yield={self.yield_percent})>"
+
+
+class FactEconomicIndicator(Base):
+    """Economic indicator fact table."""
+    __tablename__ = "fact_economic_indicator"
+
+    # Primary key
+    economic_data_id = Column(Integer, primary_key=True, autoincrement=True)
+
+    # Foreign keys
+    indicator_id = Column(Integer, ForeignKey("dim_economic_indicator.indicator_id"), nullable=False, index=True)
+    date_id = Column(Integer, ForeignKey("dim_date.date_id"), nullable=False, index=True)
+    source_id = Column(Integer, ForeignKey("dim_data_source.source_id"), nullable=False, index=True)
+
+    # Metrics
+    value = Column(Numeric(18, 4), nullable=False)  # The actual indicator value
+    
+    # Derived metrics (optional)
+    change_from_previous = Column(Numeric(18, 4))  # Change from previous period
+    change_percent = Column(Numeric(8, 4))  # Percentage change from previous
+    
+    # Metadata
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    indicator = relationship("DimEconomicIndicator")
+    date = relationship("DimDate")
+    source = relationship("DimDataSource")
+
+    # Ensure uniqueness: one value per indicator per date per source
+    __table_args__ = (
+        UniqueConstraint('indicator_id', 'date_id', 'source_id', name='uix_indicator_date_source'),
+        {"sqlite_autoincrement": True},
+    )
+
+    def __repr__(self):
+        return f"<FactEconomicIndicator(indicator_id={self.indicator_id}, date_id={self.date_id}, value={self.value})>"

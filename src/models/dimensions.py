@@ -138,3 +138,22 @@ class DimBond(Base):
 
     def __repr__(self):
         return f"<DimBond(isin={self.isin}, type={self.bond_type})>"
+
+
+class DimEconomicIndicator(Base):
+    """Economic indicator dimension table."""
+    __tablename__ = "dim_economic_indicator"
+
+    indicator_id = Column(Integer, primary_key=True, autoincrement=True)
+    indicator_code = Column(String(50), unique=True, nullable=False, index=True)  # GDP, UNRATE, etc.
+    indicator_name = Column(String(255), nullable=False)  # Full name
+    category = Column(String(100), nullable=False)  # GDP, Inflation, Employment, etc.
+    unit = Column(String(100))  # Percent, Billions of Dollars, Index, etc.
+    frequency = Column(String(20))  # Daily, Monthly, Quarterly, Annual
+    source = Column(String(50), default='FRED')  # FRED, BLS, etc.
+    description = Column(String(500))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    def __repr__(self):
+        return f"<DimEconomicIndicator(code={self.indicator_code}, name={self.indicator_name})>"

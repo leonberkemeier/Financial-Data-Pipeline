@@ -1,0 +1,57 @@
+# Unified Pipeline Configuration
+# Configure which data sources to extract and their parameters
+
+stocks:
+  enabled: true
+  tickers:
+    - AAPL
+    - MSFT
+    - GOOGL
+    - AMZN
+    - TSLA
+  period: "30d"  # 1d, 5d, 1mo, 3mo, 1y, max
+  source: "yahoo"  # yahoo or alpha_vantage
+
+crypto:
+  enabled: true
+  symbols:
+    - BTC
+    - ETH
+    - ADA
+  days: 30
+  source: "coingecko"
+  rate_limit_delay: 2.0  # seconds between API calls
+
+bonds:
+  enabled: true
+  periods:
+    - 3MO
+    - 2Y
+    - 10Y
+    - 30Y
+  days: 30
+  source: "yahoo"  # yahoo or fred
+  # Use both sources for redundancy
+  fallback_source: "fred"
+
+economic:
+  enabled: true
+  indicators:
+    - GDP
+    - UNRATE
+    - CPIAUCSL
+    - FEDFUNDS
+  days: 365
+  source: "fred"
+
+# Pipeline execution settings
+execution:
+  parallel: false  # Run pipelines in parallel (experimental)
+  continue_on_error: true  # Continue if one pipeline fails
+  dry_run: false  # Extract only, no database writes
+  
+# Logging
+logging:
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  save_to_file: true
+  log_dir: "logs"

@@ -9,7 +9,8 @@ from src.models import (
     DimCompany, DimDate, DimExchange, DimDataSource,
     FactStockPrice, FactCompanyMetrics,
     DimCryptoAsset, FactCryptoPrice,
-    DimIssuer, DimBond, FactBondPrice
+    DimIssuer, DimBond, FactBondPrice,
+    DimEconomicIndicator, FactEconomicIndicator
 )
 
 
@@ -436,4 +437,95 @@ class DataLoader:
             logger.debug(f"Committed batch {i//batch_size + 1}")
         
         logger.info(f"Loaded {records_loaded} new bond price records")
+        return records_loaded
+
+    def load_economic_indicators(self, indicator_df: pd.DataFrame) -> Dict[str, int]:
+        """
+        Load economic indicator dimension data.
+
+        Args:
+            indicator_df: DataFrame with economic indicator metadata
+
+        Returns:
+            Dictionary mapping indicator_code to indicator_id
+        """
+        logger.info(f"Loading {len(indicator_df)} economic indicators")
+        
+        indicator_mapping = {}
+        
+        for _, row in indicator_df.iterrows():
+            indicator = self.db.execute(
+                select(DimEconomicIndicator).where(
+                    DimEconomicIndicator.indicator_code == row['indicator_code']
+                )
+            ).scalar_one_or_none()
+            
+            if indicator:
+                # Update existing
+                indicator.indicator_name = row.get('indicator_name', indicator.indicator_name)
+                indicator.category = row.get('category', indicator.category)
+                indicator.unit = row.get('unit', indicator.unit)
+                indicator.frequency = row.get('frequency', indicator.frequency)
+                logger.debug(f"Updated indicator: {row['indicator_code']}")
+            else:
+                # Create new
+                indicator = DimEconomicIndicator(
+                    indicator_code=row['indicator_code'],
+                    indicator_name=row.get('indicator_name', row['indicator_code']),
+                    category=row.get('category', 'General'),
+                    unit=row.get('unit', 'Number'),
+                    frequency=row.get('frequency', 'Unknown'),
+                    source=row.get('source', 'FRED')
+                )
+                self.db.add(indicator)
+                logger.debug(f"Created indicator: {row['indicator_code']}")
+            
+            self.db.commit()
+            self.db.refresh(indicator)
+            indicator_mapping[row['indicator_code']] = indicator.indicator_id
+        
+        logger.info(f"Loaded {len(indicator_mapping)} economic indicators")
+        return indicator_mapping
+
+    def load_economic_data(self, data_df: pd.DataFrame, batch_size: int = 1000) -> int:
+        """
+        Load economic indicator fact data.
+
+        Args:
+            data_df: DataFrame with economic indicator values
+            batch_size: Number of records to insert per batch
+
+        Returns:
+            Number of records loaded
+        """
+        logger.info(f"Loading {len(data_df)} economic data records")
+        
+        records_loaded = 0
+        
+        for i in range(0, len(data_df), batch_size):
+            batch = data_df.iloc[i:i+batch_size]
+            
+            for _, row in batch.iterrows():
+                existing = self.db.execute(
+                    select(FactEconomicIndicator).where(
+                        FactEconomicIndicator.indicator_id == row['indicator_id'],
+                        FactEconomicIndicator.date_id == row['date_id'],
+                        FactEconomicIndicator.source_id == row['source_id']
+                    )
+                ).scalar_one_or_none()
+                
+                if existing:
+                    # Update existing record
+                    existing.value = row.get('value', existing.value)
+                    logger.debug(f"Updated economic data record")
+                else:
+                    # Insert new record
+                    data_record = FactEconomicIndicator(**row.to_dict())
+                    self.db.add(data_record)
+                    records_loaded += 1
+            
+            self.db.commit()
+            logger.debug(f"Committed batch {i//batch_size + 1}")
+        
+        logger.info(f"Loaded {records_loaded} new economic data records")
         return records_loaded
