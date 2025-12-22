@@ -10,7 +10,8 @@ from src.models import (
     FactStockPrice, FactCompanyMetrics,
     DimCryptoAsset, FactCryptoPrice,
     DimIssuer, DimBond, FactBondPrice,
-    DimEconomicIndicator, FactEconomicIndicator
+    DimEconomicIndicator, FactEconomicIndicator,
+    DimCommodity, FactCommodityPrice
 )
 
 
@@ -528,4 +529,99 @@ class DataLoader:
             logger.debug(f"Committed batch {i//batch_size + 1}")
         
         logger.info(f"Loaded {records_loaded} new economic data records")
+        return records_loaded
+
+    def load_commodities(self, commodity_df: pd.DataFrame) -> Dict[str, int]:
+        """
+        Load commodity dimension data.
+
+        Args:
+            commodity_df: DataFrame with commodity metadata
+                         Columns: ['symbol', 'name', 'category', 'unit', 'exchange', 'source']
+
+        Returns:
+            Dictionary mapping symbol to commodity_id
+        """
+        logger.info(f"Loading {len(commodity_df)} commodities")
+        
+        commodity_mapping = {}
+        
+        for _, row in commodity_df.iterrows():
+            commodity = self.db.execute(
+                select(DimCommodity).where(
+                    DimCommodity.symbol == row['symbol']
+                )
+            ).scalar_one_or_none()
+            
+            if commodity:
+                # Update existing
+                commodity.name = row.get('name', commodity.name)
+                commodity.category = row.get('category', commodity.category)
+                commodity.unit = row.get('unit', commodity.unit)
+                commodity.exchange = row.get('exchange', commodity.exchange)
+                commodity.source = row.get('source', commodity.source)
+                logger.debug(f"Updated commodity: {row['symbol']}")
+            else:
+                # Create new
+                commodity = DimCommodity(
+                    symbol=row['symbol'],
+                    name=row.get('name', row['symbol']),
+                    category=row.get('category', 'Unknown'),
+                    unit=row.get('unit', 'Unknown'),
+                    exchange=row.get('exchange', 'Unknown'),
+                    source=row.get('source', 'yahoo_finance')
+                )
+                self.db.add(commodity)
+                logger.debug(f"Created commodity: {row['symbol']}")
+            
+            self.db.commit()
+            self.db.refresh(commodity)
+            commodity_mapping[row['symbol']] = commodity.commodity_id
+        
+        logger.info(f"Loaded {len(commodity_mapping)} commodities")
+        return commodity_mapping
+
+    def load_commodity_prices(self, price_df: pd.DataFrame, batch_size: int = 1000) -> int:
+        """
+        Load commodity price fact data.
+
+        Args:
+            price_df: DataFrame with commodity price data
+            batch_size: Number of records to insert per batch
+
+        Returns:
+            Number of records loaded
+        """
+        logger.info(f"Loading {len(price_df)} commodity price records")
+        
+        records_loaded = 0
+        
+        for i in range(0, len(price_df), batch_size):
+            batch = price_df.iloc[i:i+batch_size]
+            
+            for _, row in batch.iterrows():
+                existing = self.db.execute(
+                    select(FactCommodityPrice).where(
+                        FactCommodityPrice.commodity_id == row['commodity_id'],
+                        FactCommodityPrice.date_id == row['date_id'],
+                        FactCommodityPrice.source_id == row['source_id']
+                    )
+                ).scalar_one_or_none()
+                
+                if existing:
+                    # Update existing record
+                    for col in price_df.columns:
+                        if col not in ['commodity_id', 'date_id', 'source_id'] and col in row:
+                            setattr(existing, col, row[col])
+                    logger.debug(f"Updated commodity price record")
+                else:
+                    # Insert new record
+                    price_record = FactCommodityPrice(**row.to_dict())
+                    self.db.add(price_record)
+                    records_loaded += 1
+            
+            self.db.commit()
+            logger.debug(f"Committed batch {i//batch_size + 1}")
+        
+        logger.info(f"Loaded {records_loaded} new commodity price records")
         return records_loaded

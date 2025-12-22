@@ -525,3 +525,131 @@ class DataTransformer:
         
         logger.info(f"Transformed {len(transformed)} economic data records")
         return transformed
+
+    @staticmethod
+    def transform_commodity_dimension(commodity_df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Transform commodity data into commodity dimension format.
+
+        Args:
+            commodity_df: DataFrame with raw commodity metadata
+                         For Yahoo: columns ['symbol', 'name', 'category', 'unit', 'exchange', 'source']
+                         For FRED: columns ['series_id', 'name', 'category', 'unit', 'exchange', 'source']
+
+        Returns:
+            DataFrame with commodity dimension attributes
+        """
+        logger.info("Transforming commodity dimension")
+        
+        # Handle both Yahoo (symbol) and FRED (series_id) formats
+        if 'symbol' in commodity_df.columns:
+            id_column = 'symbol'
+        elif 'series_id' in commodity_df.columns:
+            id_column = 'series_id'
+        else:
+            logger.error("No symbol or series_id column found")
+            return pd.DataFrame()
+        
+        transformed = commodity_df[[
+            id_column, 'name', 'category', 'unit', 'exchange', 'source'
+        ]].copy()
+        
+        # Rename to standard symbol column
+        if id_column == 'series_id':
+            transformed = transformed.rename(columns={'series_id': 'symbol'})
+        
+        # Clean data
+        transformed = transformed.fillna({
+            'category': 'Unknown',
+            'unit': 'Unknown',
+            'exchange': 'Unknown'
+        })
+        
+        # Remove duplicates
+        transformed = transformed.drop_duplicates(subset=['symbol'])
+        
+        logger.info(f"Transformed {len(transformed)} commodity records")
+        return transformed
+
+    @staticmethod
+    def transform_commodity_price(
+        price_df: pd.DataFrame,
+        commodity_mapping: Dict[str, int],
+        date_mapping: Dict,
+        source_id: int
+    ) -> pd.DataFrame:
+        """
+        Transform commodity price data into fact table format.
+
+        Args:
+            price_df: DataFrame with raw commodity price data
+                     For Yahoo: columns ['symbol', 'date', 'open', 'high', 'low', 'close', 'volume', ...]
+                     For FRED: columns ['series_id', 'date', 'value', ...]
+            commodity_mapping: Dict mapping symbol to commodity_id
+            date_mapping: Dict mapping date to date_id
+            source_id: ID of the data source
+
+        Returns:
+            DataFrame with fact table attributes
+        """
+        logger.info("Transforming commodity price facts")
+        
+        transformed = price_df.copy()
+        
+        # Handle both Yahoo (symbol) and FRED (series_id) formats
+        if 'symbol' in transformed.columns:
+            id_column = 'symbol'
+        elif 'series_id' in transformed.columns:
+            id_column = 'series_id'
+            # For FRED data, 'value' becomes 'close_price'
+            if 'value' in transformed.columns and 'close' not in transformed.columns:
+                transformed['close'] = transformed['value']
+        else:
+            logger.error("No symbol or series_id column found")
+            return pd.DataFrame()
+        
+        # Map foreign keys
+        transformed['commodity_id'] = transformed[id_column].map(commodity_mapping)
+        
+        # Handle date mapping
+        def get_date_id(x):
+            if isinstance(x, str):
+                date_obj = pd.to_datetime(x).date()
+            elif isinstance(x, pd.Timestamp):
+                date_obj = x.date()
+            else:
+                date_obj = x
+            return date_mapping.get(date_obj)
+        
+        transformed['date_id'] = transformed['date'].apply(get_date_id)
+        transformed['source_id'] = source_id
+        
+        # Select and rename columns for fact table
+        fact_columns = {
+            'commodity_id': 'commodity_id',
+            'date_id': 'date_id',
+            'source_id': 'source_id',
+            'open': 'open_price',
+            'high': 'high_price',
+            'low': 'low_price',
+            'close': 'close_price',
+            'volume': 'volume',
+            'price_change': 'price_change',
+            'price_change_percent': 'price_change_percent'
+        }
+        
+        # Keep only columns that exist
+        available_columns = {k: v for k, v in fact_columns.items() if k in transformed.columns}
+        transformed = transformed.rename(columns=available_columns)
+        transformed = transformed[list(available_columns.values())]
+        
+        # Remove rows with missing required fields
+        transformed = transformed.dropna(subset=['commodity_id', 'date_id', 'close_price'])
+        
+        # Ensure integer IDs
+        transformed['commodity_id'] = transformed['commodity_id'].astype(int)
+        transformed['date_id'] = transformed['date_id'].astype(int)
+        transformed['source_id'] = int(source_id)
+        
+        logger.info(f"Transformed {len(transformed)} commodity price records")
+        return transformed
