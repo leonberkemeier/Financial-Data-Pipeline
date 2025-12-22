@@ -1,13 +1,16 @@
 # Financial Data Aggregator
 
-A production-ready ETL pipeline that aggregates financial data from multiple sources (Yahoo Finance, Alpha Vantage) and loads it into a star schema data warehouse.
+A production-ready ETL pipeline that aggregates financial data from multiple sources and loads it into a star schema data warehouse.
 
 ## 🌟 Features
 
-- **Multi-Source Data Extraction**: Pull data from Yahoo Finance and Alpha Vantage APIs
+- **Multi-Asset Support**: Stocks, Crypto, Bonds, and Economic Indicators
+- **Multi-Source Extraction**: Yahoo Finance, CoinGecko, FRED, Alpha Vantage
 - **Star Schema Design**: Dimensional modeling with fact and dimension tables
+- **Unified Pipeline**: Single command to run all data sources
+- **Configuration-Driven**: YAML config file for easy customization
+- **Rate Limiting**: Built-in API throttling to prevent rate limit errors
 - **Data Quality Checks**: Built-in validation for data integrity
-- **Configurable Pipeline**: Easy to customize tickers, date ranges, and sources
 - **Production Logging**: Comprehensive logging with rotation and error tracking
 - **Batch Processing**: Efficient loading with configurable batch sizes
 
@@ -15,10 +18,18 @@ A production-ready ETL pipeline that aggregates financial data from multiple sou
 
 ### Fact Tables
 - `fact_stock_price`: Daily stock prices with OHLCV data
-- `fact_company_metrics`: Company fundamental metrics (PE ratio, market cap, etc.)
+- `fact_crypto_price`: Cryptocurrency prices and market data
+- `fact_bond_price`: Treasury yields and bond prices
+- `fact_economic_indicator`: Economic indicators time series
+- `fact_company_metrics`: Company fundamental metrics
+- `fact_sec_filing`: SEC filings data
 
 ### Dimension Tables
-- `dim_company`: Company information (ticker, name, sector, industry)
+- `dim_company`: Stock company information
+- `dim_crypto_asset`: Cryptocurrency asset information
+- `dim_bond`: Bond/treasury information
+- `dim_issuer`: Bond issuer information
+- `dim_economic_indicator`: Economic indicator metadata
 - `dim_date`: Date dimension with calendar attributes
 - `dim_exchange`: Exchange information
 - `dim_data_source`: Data source metadata
@@ -51,61 +62,95 @@ cp .env.example .env
 Edit `.env`:
 ```env
 # Database Configuration
-DATABASE_URL=postgresql://user:password@localhost:5432/financial_data
+DATABASE_URL=sqlite:///financial_data.db
 
-# API Keys (optional - Yahoo Finance doesn't require a key)
-ALPHA_VANTAGE_API_KEY=your_api_key_here
+# API Keys
+FRED_API_KEY=your_fred_api_key_here
+ALPHA_VANTAGE_API_KEY=your_api_key_here  # Optional
 
 # Pipeline Configuration
 LOG_LEVEL=INFO
 BATCH_SIZE=100
 ```
 
+**Get API Keys:**
+- FRED API Key (free): https://fred.stlouisfed.org/
+- Alpha Vantage (optional): https://www.alphavantage.co/
+
 ### 4. Setup Database
 
-Create a PostgreSQL database:
-```bash
-createdb financial_data
-```
+The pipeline uses SQLite by default (no setup needed). Tables are created automatically on first run.
 
-The pipeline will automatically create tables on first run.
+To use PostgreSQL instead, update `DATABASE_URL` in `.env`:
+```env
+DATABASE_URL=postgresql://user:password@localhost:5432/financial_data
+```
 
 ## 💻 Usage
 
-### Run the Pipeline
+### Unified Pipeline (Recommended)
 
-**Basic usage (Yahoo Finance, default tickers, last month):**
+**Run all data sources at once:**
 ```bash
-python pipeline.py
+python unified_pipeline.py --all
 ```
 
-**Specify tickers:**
+**Run specific sources:**
 ```bash
-python pipeline.py --tickers AAPL GOOGL MSFT
+# Just crypto and bonds
+python unified_pipeline.py --crypto --bonds
+
+# Just economic indicators
+python unified_pipeline.py --economic
+
+# Just stocks
+python unified_pipeline.py --stocks
 ```
 
-**Specify date range:**
+**Configuration:**
+Edit `config/pipeline_config.yaml` to customize:
+- Which sources to enable
+- Tickers/symbols to track
+- Date ranges and periods
+- API rate limits
+
+### Individual Pipelines
+
+**Stocks:**
 ```bash
-python pipeline.py --start-date 2024-01-01 --end-date 2024-12-31
+python pipeline.py --tickers AAPL MSFT GOOGL --period 30d
 ```
 
-**Use Alpha Vantage (requires API key):**
+**Crypto:**
 ```bash
-python pipeline.py --source alpha_vantage --tickers AAPL
+python crypto_etl_pipeline.py --symbols BTC ETH ADA --days 30
 ```
 
-**Fetch longer period:**
+**Bonds:**
 ```bash
-python pipeline.py --period 1y  # Options: 1d, 5d, 1mo, 1y, max
+python bond_etl_pipeline.py --periods 3MO 10Y 30Y --source yahoo --days 30
 ```
 
-### Command Line Arguments
+**Economic Indicators:**
+```bash
+python economic_etl_pipeline.py --indicators GDP UNRATE CPIAUCSL --days 365
+```
 
-- `--source`: Data source to use (`yahoo` or `alpha_vantage`)
-- `--tickers`: Space-separated list of stock tickers
-- `--period`: Time period to fetch (1d, 5d, 1mo, 1y, max)
-- `--start-date`: Start date (YYYY-MM-DD format)
-- `--end-date`: End date (YYYY-MM-DD format)
+### Query Your Data
+
+**View crypto data:**
+```bash
+python query_crypto.py overview
+python query_crypto.py timeseries BTC 30
+python query_crypto.py compare BTC ETH ADA
+```
+
+### Test All Data Sources
+
+**Quick test to verify all extractors:**
+```bash
+python test_all_sources.py
+```
 
 ### View Data with Web Dashboard
 
@@ -123,41 +168,74 @@ Open your browser to **http://localhost:5000** to:
 
 See `dashboard/README.md` for more details.
 
+## 📊 Available Data Sources
+
+### Cryptocurrency (CoinGecko)
+**Symbols:** BTC, ETH, ADA, BNB, SOL, DOT, MATIC, AVAX, LINK, UNI, and more
+**Data:** Price, market cap, volume, 24h change
+**Rate Limit:** 1.5s delay (configurable)
+
+### Bonds (FRED & Yahoo Finance)
+**Periods:** 3MO, 2Y, 5Y, 10Y, 30Y
+**Data:** Treasury yields and bond prices
+**Sources:** 
+- FRED: Official Federal Reserve data
+- Yahoo Finance: Real-time bond prices (tickers: ^IRX, ^FVX, ^TNX, ^TYX)
+
+### Economic Indicators (FRED)
+**15 indicators across 8 categories:**
+- **GDP & Growth:** GDP, GDPC1
+- **Inflation:** CPIAUCSL, CPILFESL, PCEPI
+- **Employment:** UNRATE, PAYEMS, CIVPART
+- **Interest Rates:** FEDFUNDS, DFF
+- **Consumer & Housing:** UMCSENT, HOUST, RSXFS
+- **Money Supply:** M1SL, M2SL
+
+### Stocks (Yahoo Finance & Alpha Vantage)
+**Tickers:** Any US stock (AAPL, MSFT, GOOGL, etc.)
+**Data:** OHLCV, company info, fundamentals
+
 ## 📁 Project Structure
 
 ```
 financial_data_aggregator/
 ├── config/
-│   ├── __init__.py
-│   └── config.py              # Configuration management
+│   ├── config.py              # Configuration management
+│   └── pipeline_config.yaml   # Unified pipeline config
 ├── src/
 │   ├── extractors/
-│   │   ├── yahoo_finance.py   # Yahoo Finance API client
-│   │   └── alpha_vantage.py   # Alpha Vantage API client
+│   │   ├── yahoo_finance.py   # Yahoo Finance (stocks)
+│   │   ├── crypto_gecko.py    # CoinGecko (crypto)
+│   │   ├── fred_bond.py       # FRED (bonds)
+│   │   ├── yahoo_bond.py      # Yahoo Finance (bonds)
+│   │   ├── economic_indicators.py  # FRED (economic data)
+│   │   └── alpha_vantage.py   # Alpha Vantage (stocks)
 │   ├── transformers/
-│   │   └── data_transformer.py # Data transformation logic
+│   │   └── data_transformer.py # All data transformations
 │   ├── loaders/
-│   │   └── data_loader.py     # Database loading logic
+│   │   └── data_loader.py     # Database loading
 │   ├── models/
 │   │   ├── base.py            # Database configuration
 │   │   ├── dimensions.py      # Dimension table models
 │   │   └── facts.py           # Fact table models
 │   └── utils/
-│       ├── logger.py          # Logging configuration
-│       └── validators.py      # Data quality validators
-├── tests/                      # Unit tests
-├── logs/                       # Log files
-├── data/                       # Temporary data storage
-├── pipeline.py                 # Main pipeline orchestrator
-├── requirements.txt            # Python dependencies
-├── .env.example               # Environment template
-└── README.md                  # This file
+│       ├── logger.py          # Logging
+│       └── validators.py      # Data quality
+├── pipeline.py                 # Stock ETL pipeline
+├── crypto_etl_pipeline.py      # Crypto ETL pipeline
+├── bond_etl_pipeline.py        # Bond ETL pipeline  
+├── economic_etl_pipeline.py    # Economic ETL pipeline
+├── unified_pipeline.py         # Orchestrates all pipelines
+├── query_crypto.py             # Query crypto data
+├── test_all_sources.py         # Test all extractors
+└── README.md                   # This file
 ```
 
 ## 🔍 Example Queries
 
 After running the pipeline, query your data:
 
+### Stock Queries
 ```sql
 -- Get latest stock prices
 SELECT 
@@ -171,28 +249,56 @@ JOIN dim_company c ON f.company_id = c.company_id
 JOIN dim_date d ON f.date_id = d.date_id
 ORDER BY d.date DESC, c.ticker
 LIMIT 10;
+```
 
--- Calculate average price by sector
+### Crypto Queries
+```sql
+-- Compare crypto performance
 SELECT 
-    c.sector,
-    AVG(f.close_price) as avg_price,
-    COUNT(*) as record_count
-FROM fact_stock_price f
-JOIN dim_company c ON f.company_id = c.company_id
-GROUP BY c.sector
-ORDER BY avg_price DESC;
-
--- Find stocks with highest volatility
-SELECT 
-    c.ticker,
-    c.company_name,
-    AVG(f.price_change_percent) as avg_change_pct,
-    STDDEV(f.price_change_percent) as volatility
-FROM fact_stock_price f
-JOIN dim_company c ON f.company_id = c.company_id
-GROUP BY c.ticker, c.company_name
-ORDER BY volatility DESC
+    ca.symbol,
+    ca.name,
+    f.current_price,
+    f.price_change_24h,
+    f.price_change_percentage_24h,
+    f.market_cap
+FROM fact_crypto_price f
+JOIN dim_crypto_asset ca ON f.crypto_asset_id = ca.crypto_asset_id
+JOIN dim_date d ON f.date_id = d.date_id
+ORDER BY f.market_cap DESC
 LIMIT 10;
+```
+
+### Bond Queries
+```sql
+-- Track treasury yields over time
+SELECT 
+    b.bond_type,
+    b.maturity_period,
+    d.date,
+    f.yield
+FROM fact_bond_price f
+JOIN dim_bond b ON f.bond_id = b.bond_id
+JOIN dim_date d ON f.date_id = d.date_id
+WHERE b.maturity_period IN ('10Y', '30Y')
+ORDER BY d.date DESC
+LIMIT 20;
+```
+
+### Economic Indicators
+```sql
+-- Get latest economic indicators
+SELECT 
+    ei.indicator_code,
+    ei.indicator_name,
+    ei.category,
+    d.date,
+    f.value,
+    f.year_over_year_change
+FROM fact_economic_indicator f
+JOIN dim_economic_indicator ei ON f.indicator_id = ei.indicator_id
+JOIN dim_date d ON f.date_id = d.date_id
+WHERE d.date = (SELECT MAX(date) FROM dim_date)
+ORDER BY ei.category, ei.indicator_code;
 ```
 
 ## 📝 Logging
