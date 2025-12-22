@@ -2,11 +2,11 @@
 from .base import Base, engine, SessionLocal, get_db, init_db
 from .dimensions import (
     DimCompany, DimDate, DimExchange, DimDataSource, DimFilingType,
-    DimCryptoAsset, DimIssuer, DimBond, DimEconomicIndicator
+    DimCryptoAsset, DimIssuer, DimBond, DimEconomicIndicator, DimCommodity
 )
 from .facts import (
     FactStockPrice, FactCompanyMetrics, FactSECFiling, FactFilingAnalysis,
-    FactCryptoPrice, FactBondPrice, FactEconomicIndicator
+    FactCryptoPrice, FactBondPrice, FactEconomicIndicator, FactCommodityPrice
 )
 
 __all__ = [
@@ -24,6 +24,7 @@ __all__ = [
     "DimIssuer",
     "DimBond",
     "DimEconomicIndicator",
+    "DimCommodity",
     "FactStockPrice",
     "FactCompanyMetrics",
     "FactSECFiling",
@@ -31,4 +32,5 @@ __all__ = [
     "FactCryptoPrice",
     "FactBondPrice",
     "FactEconomicIndicator",
+    "FactCommodityPrice",
 ]

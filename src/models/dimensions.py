@@ -157,3 +157,22 @@ class DimEconomicIndicator(Base):
 
     def __repr__(self):
         return f"<DimEconomicIndicator(code={self.indicator_code}, name={self.indicator_name})>"
+
+
+class DimCommodity(Base):
+    """Commodity dimension table."""
+    __tablename__ = "dim_commodity"
+
+    commodity_id = Column(Integer, primary_key=True, autoincrement=True)
+    symbol = Column(String(50), unique=True, nullable=False, index=True)  # CL=F, GC=F, DCOILWTICO, etc.
+    name = Column(String(255), nullable=False)  # Crude Oil WTI, Gold, etc.
+    category = Column(String(100), nullable=False)  # Energy, Metals, Agriculture
+    unit = Column(String(100))  # barrel, troy ounce, bushel, etc.
+    exchange = Column(String(100))  # NYMEX, COMEX, FRED, etc.
+    source = Column(String(50), nullable=False)  # yahoo_finance, fred
+    description = Column(String(500))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    def __repr__(self):
+        return f"<DimCommodity(symbol={self.symbol}, name={self.name})>"

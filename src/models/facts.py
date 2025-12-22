@@ -293,3 +293,45 @@ class FactEconomicIndicator(Base):
 
     def __repr__(self):
         return f"<FactEconomicIndicator(indicator_id={self.indicator_id}, date_id={self.date_id}, value={self.value})>"
+
+
+class FactCommodityPrice(Base):
+    """Commodity price fact table."""
+    __tablename__ = "fact_commodity_price"
+
+    # Primary key
+    commodity_price_id = Column(Integer, primary_key=True, autoincrement=True)
+
+    # Foreign keys
+    commodity_id = Column(Integer, ForeignKey("dim_commodity.commodity_id"), nullable=False, index=True)
+    date_id = Column(Integer, ForeignKey("dim_date.date_id"), nullable=False, index=True)
+    source_id = Column(Integer, ForeignKey("dim_data_source.source_id"), nullable=False, index=True)
+
+    # Metrics - OHLCV for futures (Yahoo)
+    open_price = Column(Numeric(18, 4))  # Opening price
+    high_price = Column(Numeric(18, 4))  # High price
+    low_price = Column(Numeric(18, 4))  # Low price
+    close_price = Column(Numeric(18, 4), nullable=False)  # Closing price or spot price
+    volume = Column(BigInteger)  # Trading volume (futures contracts)
+    
+    # Derived metrics
+    price_change = Column(Numeric(18, 4))  # close - open or day-over-day
+    price_change_percent = Column(Numeric(8, 4))  # Percentage change
+    
+    # Metadata
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), onupdate=func.now())
+
+    # Relationships
+    commodity = relationship("DimCommodity")
+    date = relationship("DimDate")
+    source = relationship("DimDataSource")
+
+    # Ensure uniqueness: one price record per commodity per date per source
+    __table_args__ = (
+        UniqueConstraint('commodity_id', 'date_id', 'source_id', name='uix_commodity_date_source'),
+        {"sqlite_autoincrement": True},
+    )
+
+    def __repr__(self):
+        return f"<FactCommodityPrice(commodity_id={self.commodity_id}, date_id={self.date_id}, close={self.close_price})>"
