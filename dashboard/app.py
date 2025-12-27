@@ -735,9 +735,110 @@ def chat():
                          companies=companies.to_dict('records'))
 
 
+def fetch_multi_asset_data(question):
+    """Fetch relevant data from all asset types based on question keywords."""
+    conn = get_db_connection()
+    data_summary = ""
+    
+    question_lower = question.lower()
+    
+    # Check for crypto keywords
+    crypto_keywords = ['crypto', 'bitcoin', 'btc', 'ethereum', 'eth', 'ada', 'cardano']
+    if any(kw in question_lower for kw in crypto_keywords):
+        crypto_data = pd.read_sql(text("""
+            SELECT 
+                ca.symbol,
+                ca.name,
+                d.date,
+                f.price,
+                f.market_cap,
+                f.price_change_24h
+            FROM fact_crypto_price f
+            JOIN dim_crypto_asset ca ON f.crypto_id = ca.crypto_id
+            JOIN dim_date d ON f.date_id = d.date_id
+            ORDER BY d.date DESC
+            LIMIT 30
+        """), conn)
+        
+        if not crypto_data.empty:
+            data_summary += "\n\n₿ **Cryptocurrency Data:**\n"
+            for symbol in crypto_data['symbol'].unique():
+                symbol_data = crypto_data[crypto_data['symbol'] == symbol]
+                latest = symbol_data.iloc[0]
+                data_summary += f"\n{symbol} ({latest['name']}):\n"
+                data_summary += f"  Latest Price: ${latest['price']:,.2f} ({latest['date']})\n"
+                if latest['market_cap']:
+                    data_summary += f"  Market Cap: ${latest['market_cap']:,.0f}\n"
+                if latest['price_change_24h']:
+                    data_summary += f"  24h Change: {latest['price_change_24h']:.2f}%\n"
+    
+    # Check for commodity keywords
+    commodity_keywords = ['commodity', 'commodities', 'oil', 'gold', 'silver', 'copper', 'gas', 'metal']
+    if any(kw in question_lower for kw in commodity_keywords):
+        commodity_data = pd.read_sql(text("""
+            SELECT 
+                c.symbol,
+                c.name,
+                c.category,
+                d.date,
+                f.close_price,
+                f.price_change_percent
+            FROM fact_commodity_price f
+            JOIN dim_commodity c ON f.commodity_id = c.commodity_id
+            JOIN dim_date d ON f.date_id = d.date_id
+            ORDER BY d.date DESC
+            LIMIT 30
+        """), conn)
+        
+        if not commodity_data.empty:
+            data_summary += "\n\n🛢️ **Commodity Data:**\n"
+            for symbol in commodity_data['symbol'].unique():
+                symbol_data = commodity_data[commodity_data['symbol'] == symbol]
+                latest = symbol_data.iloc[0]
+                data_summary += f"\n{latest['name']} ({symbol}) - {latest['category']}:\n"
+                data_summary += f"  Latest Price: ${latest['close_price']:.2f} ({latest['date']})\n"
+                if latest['price_change_percent']:
+                    data_summary += f"  Change: {latest['price_change_percent']:.2f}%\n"
+    
+    # Check for economic keywords
+    economic_keywords = ['gdp', 'unemployment', 'inflation', 'cpi', 'interest rate', 'fed', 'economy', 'economic']
+    if any(kw in question_lower for kw in economic_keywords):
+        economic_data = pd.read_sql(text("""
+            SELECT 
+                ei.indicator_code,
+                ei.indicator_name,
+                ei.category,
+                ei.unit,
+                d.date,
+                f.value
+            FROM fact_economic_indicator f
+            JOIN dim_economic_indicator ei ON f.indicator_id = ei.indicator_id
+            JOIN dim_date d ON f.date_id = d.date_id
+            ORDER BY d.date DESC
+            LIMIT 20
+        """), conn)
+        
+        if not economic_data.empty:
+            data_summary += "\n\n📈 **Economic Indicators:**\n"
+            for code in economic_data['indicator_code'].unique():
+                indicator_data = economic_data[economic_data['indicator_code'] == code]
+                latest = indicator_data.iloc[0]
+                data_summary += f"\n{latest['indicator_name']} ({code}):\n"
+                data_summary += f"  Latest Value: {latest['value']:.2f} {latest['unit']} ({latest['date']})\n"
+                
+                # Calculate trend if we have multiple data points
+                if len(indicator_data) > 1:
+                    oldest = indicator_data.iloc[-1]
+                    change = latest['value'] - oldest['value']
+                    data_summary += f"  Trend: {change:+.2f} since {oldest['date']}\n"
+    
+    conn.close()
+    return data_summary
+
+
 @app.route('/api/chat/query', methods=['POST'])
 def api_chat_query():
-    """API endpoint for RAG queries with OHLCV data access."""
+    """API endpoint for RAG queries with multi-asset data access."""
     if not RAG_AVAILABLE:
         return jsonify({
             'success': False,
@@ -751,13 +852,17 @@ def api_chat_query():
         if not question:
             return jsonify({'success': False, 'error': 'No question provided'}), 400
         
-        # Strategy: Always try to provide comprehensive data
+        # Strategy: Provide comprehensive multi-asset data
         # 1. Try RAG for SEC filing context
-        # 2. Extract tickers and get price data
-        # 3. Let LLM synthesize both sources
+        # 2. Fetch relevant crypto/commodity/economic data
+        # 3. Extract tickers and get stock price data
+        # 4. Let LLM synthesize all sources
         
         rag = RAGSystem()
         result = rag.query(question, verbose=False)
+        
+        # Fetch multi-asset data based on question keywords
+        multi_asset_summary = fetch_multi_asset_data(question)
         
         # Extract tickers from sources OR question
         tickers = list(set([s['ticker'] for s in result['sources']])) if result['sources'] else []
@@ -829,19 +934,22 @@ def api_chat_query():
                         price_summary += f"  Range: ${min_price:.2f} - ${max_price:.2f}\n"
                         price_summary += f"  Data Points: {len(ticker_data)} days\n"
                 
-                # If we have BOTH SEC filing context AND price data, ask LLM for integrated analysis
+                # Combine all data sources
+                all_market_data = price_summary + multi_asset_summary
+                
+                # If we have SEC filing context, create integrated analysis
                 if result['sources'] and result['answer'] and "No relevant information found" not in result['answer']:
-                    # Create integrated prompt
-                    integrated_prompt = f"""You have access to both SEC filing information and stock market data. Provide a comprehensive analysis integrating both sources.
+                    # Create integrated prompt with all data sources
+                    integrated_prompt = f"""You have access to SEC filings, stock prices, cryptocurrency data, commodity prices, and economic indicators. Provide a comprehensive multi-asset analysis.
 
 SEC Filing Context:
 {result['answer']}
 
-{price_summary}
+{all_market_data}
 
 Question: {question}
 
-Provide an integrated analysis that combines insights from both the SEC filing and market performance data. Be specific and actionable."""
+Provide an integrated analysis combining insights from ALL available data sources (SEC filings, stocks, crypto, commodities, economic indicators). Be specific and actionable."""
                     
                     try:
                         # Get integrated analysis from LLM
@@ -851,18 +959,49 @@ Provide an integrated analysis that combines insights from both the SEC filing a
                             model=RAG_LLM_MODEL,
                             prompt=integrated_prompt
                         )
-                        result['answer'] = response['response'] + price_summary
+                        result['answer'] = response['response']
                     except Exception as e:
-                        # Fallback: just append price data
-                        result['answer'] += price_summary
+                        # Fallback: just append all data
+                        result['answer'] += all_market_data
                 else:
-                    # Only have price data or only have SEC data
+                    # No SEC data, provide market data analysis
                     if not result['answer'] or "No relevant information found" in result['answer']:
-                        result['answer'] = f"Here's the available data for {', '.join(tickers)}:" + price_summary
+                        if tickers:
+                            result['answer'] = f"Here's the available multi-asset data:" + all_market_data
+                        else:
+                            result['answer'] = all_market_data if all_market_data else "No relevant data found for this query."
                     else:
-                        result['answer'] += price_summary
+                        result['answer'] += all_market_data
                 
                 result['price_data'] = price_data.to_dict('records')
+        else:
+            # No tickers found, but we might have multi-asset data
+            if multi_asset_summary:
+                if result['answer'] and "No relevant information found" not in result['answer']:
+                    # Have SEC data + multi-asset data
+                    integrated_prompt = f"""You have access to SEC filings and market data. Provide a comprehensive analysis.
+
+SEC Filing Context:
+{result['answer']}
+
+{multi_asset_summary}
+
+Question: {question}
+
+Provide an integrated analysis combining all available information."""
+                    
+                    try:
+                        import ollama
+                        ollama_client = ollama.Client(host=OLLAMA_HOST)
+                        response = ollama_client.generate(
+                            model=RAG_LLM_MODEL,
+                            prompt=integrated_prompt
+                        )
+                        result['answer'] = response['response']
+                    except Exception as e:
+                        result['answer'] += multi_asset_summary
+                else:
+                    result['answer'] = multi_asset_summary
         
         return jsonify({
             'success': True,

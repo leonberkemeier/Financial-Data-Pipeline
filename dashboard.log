@@ -10,12 +10,4 @@ Connecting to database: sqlite:////home/archy/Desktop/Server/FinancialData/finan
  * Restarting with stat
  * Debugger is active!
  * Debugger PIN: 251-481-202
-127.0.0.1 - - [27/Dec/2025 23:46:03] "GET /crypto HTTP/1.1" 200 -
-127.0.0.1 - - [27/Dec/2025 23:46:15] "GET /crypto HTTP/1.1" 200 -
-127.0.0.1 - - [27/Dec/2025 23:46:15] "[36mGET /static/css/style.css HTTP/1.1[0m" 304 -
-127.0.0.1 - - [27/Dec/2025 23:46:41] "GET /crypto HTTP/1.1" 200 -
-127.0.0.1 - - [27/Dec/2025 23:46:41] "[36mGET /static/css/style.css HTTP/1.1[0m" 304 -
-127.0.0.1 - - [27/Dec/2025 23:46:42] "GET / HTTP/1.1" 200 -
-127.0.0.1 - - [27/Dec/2025 23:46:42] "[36mGET /static/css/style.css HTTP/1.1[0m" 304 -
-127.0.0.1 - - [27/Dec/2025 23:46:45] "GET /commodities HTTP/1.1" 200 -
-127.0.0.1 - - [27/Dec/2025 23:46:45] "[36mGET /static/css/style.css HTTP/1.1[0m" 304 -
+127.0.0.1 - - [28/Dec/2025 00:05:23] "GET /chat HTTP/1.1" 200 -
