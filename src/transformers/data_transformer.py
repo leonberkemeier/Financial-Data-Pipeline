@@ -348,9 +348,11 @@ class DataTransformer:
         # Map issuer IDs
         transformed['issuer_id'] = transformed['issuer_name'].map(issuer_mapping)
         
-        # Convert maturity_date to datetime if needed
+        # Convert maturity_date to datetime if needed, handle NaT
         if 'maturity_date' in transformed.columns:
-            transformed['maturity_date'] = pd.to_datetime(transformed['maturity_date'])
+            transformed['maturity_date'] = pd.to_datetime(transformed['maturity_date'], errors='coerce')
+            # Replace NaT with None for database compatibility
+            transformed.loc[transformed['maturity_date'].isna(), 'maturity_date'] = None
         
         transformed = transformed.fillna({
             'bond_type': 'Unknown',
@@ -363,6 +365,13 @@ class DataTransformer:
         transformed = transformed[[
             'isin', 'issuer_id', 'bond_type', 'maturity_date', 'coupon_rate', 'currency', 'country'
         ]]
+        
+        # Convert maturity_date to proper format for database, handle None values
+        if 'maturity_date' in transformed.columns:
+            # Keep None as None, convert valid timestamps to date objects
+            transformed['maturity_date'] = transformed['maturity_date'].apply(
+                lambda x: x.date() if pd.notna(x) and x is not None else None
+            )
         
         transformed = transformed.drop_duplicates(subset=['isin'])
         

@@ -173,36 +173,50 @@ class DataQualityValidator:
         return issues
     
     def validate_ohlc_relationships(self):
-        """Validate OHLC (Open-High-Low-Close) relationships."""
+        """Validate OHLC (Open-High-Low-Close) relationships.
+        
+        Uses epsilon tolerance (0.0001) to handle floating-point precision issues.
+        """
         print("\n" + "=" * 80)
         print("📈 OHLC RELATIONSHIP VALIDATION")
         print("=" * 80)
         
         issues = []
+        epsilon = 0.0001  # Tolerance for floating-point comparison
         
-        # Stock prices - High >= Low
-        invalid_stocks = self.session.query(func.count(FactStockPrice.price_id))\
-            .filter(FactStockPrice.high_price < FactStockPrice.low_price).scalar()
+        # Stock prices - High >= Low (with epsilon tolerance)
+        invalid_stocks = self.session.execute(text(f"""
+            SELECT COUNT(*)
+            FROM fact_stock_price
+            WHERE high_price IS NOT NULL AND low_price IS NOT NULL
+            AND high_price < (low_price - {epsilon})
+        """)).scalar()
         issues.append(('Stock Prices', 'High < Low', invalid_stocks))
         
-        # Stock prices - Close within High/Low range
-        invalid_close_stocks = self.session.query(func.count(FactStockPrice.price_id))\
-            .filter(
-                (FactStockPrice.close_price > FactStockPrice.high_price) |
-                (FactStockPrice.close_price < FactStockPrice.low_price)
-            ).scalar()
+        # Stock prices - Close within High/Low range (with epsilon tolerance)
+        invalid_close_stocks = self.session.execute(text(f"""
+            SELECT COUNT(*)
+            FROM fact_stock_price
+            WHERE close_price IS NOT NULL AND high_price IS NOT NULL AND low_price IS NOT NULL
+            AND (close_price > (high_price + {epsilon}) OR close_price < (low_price - {epsilon}))
+        """)).scalar()
         issues.append(('Stock Prices', 'Close outside High/Low', invalid_close_stocks))
         
         # Commodity prices - same checks
-        invalid_commodities = self.session.query(func.count(FactCommodityPrice.commodity_price_id))\
-            .filter(FactCommodityPrice.high_price < FactCommodityPrice.low_price).scalar()
+        invalid_commodities = self.session.execute(text(f"""
+            SELECT COUNT(*)
+            FROM fact_commodity_price
+            WHERE high_price IS NOT NULL AND low_price IS NOT NULL
+            AND high_price < (low_price - {epsilon})
+        """)).scalar()
         issues.append(('Commodity Prices', 'High < Low', invalid_commodities))
         
-        invalid_close_commodities = self.session.query(func.count(FactCommodityPrice.commodity_price_id))\
-            .filter(
-                (FactCommodityPrice.close_price > FactCommodityPrice.high_price) |
-                (FactCommodityPrice.close_price < FactCommodityPrice.low_price)
-            ).scalar()
+        invalid_close_commodities = self.session.execute(text(f"""
+            SELECT COUNT(*)
+            FROM fact_commodity_price
+            WHERE close_price IS NOT NULL AND high_price IS NOT NULL AND low_price IS NOT NULL
+            AND (close_price > (high_price + {epsilon}) OR close_price < (low_price - {epsilon}))
+        """)).scalar()
         issues.append(('Commodity Prices', 'Close outside High/Low', invalid_close_commodities))
         
         # Print results
@@ -328,6 +342,9 @@ class DataQualityValidator:
             ('Economic', latest_economic)
         ]:
             if latest_date:
+                # Convert string to date if necessary
+                if isinstance(latest_date, str):
+                    latest_date = datetime.strptime(latest_date, '%Y-%m-%d').date()
                 days_old = (today - latest_date).days
                 status = '✅ FRESH' if days_old <= 7 else '⚠️  STALE' if days_old <= 30 else '❌ OLD'
                 freshness.append((name, latest_date, days_old, status))
