@@ -12,6 +12,7 @@ from loguru import logger
 from crypto_etl_pipeline import run_crypto_pipeline
 from bond_etl_pipeline import run_bond_pipeline
 from economic_etl_pipeline import run_economic_pipeline
+from commodity_etl_pipeline import run_commodity_pipeline
 
 # Load environment variables
 load_dotenv()
@@ -46,6 +47,7 @@ class UnifiedPipeline:
             'crypto': {'enabled': True, 'symbols': ['BTC', 'ETH'], 'days': 30},
             'bonds': {'enabled': True, 'periods': ['3MO', '10Y', '30Y'], 'days': 30, 'source': 'yahoo'},
             'economic': {'enabled': True, 'indicators': ['GDP', 'UNRATE'], 'days': 365},
+            'commodities': {'enabled': True, 'symbols': ['CL=F', 'GC=F', 'SI=F'], 'days': 30, 'source': 'yahoo'},
             'execution': {'continue_on_error': True, 'parallel': False}
         }
     
@@ -141,6 +143,29 @@ class UnifiedPipeline:
             logger.error(f"Economic pipeline failed: {str(e)}")
             return {'status': 'failed', 'error': str(e)}
     
+    def run_commodities(self):
+        """Run commodities pipeline."""
+        if not self.config.get('commodities', {}).get('enabled', False):
+            logger.info("Commodities pipeline disabled in config")
+            return {'status': 'skipped', 'reason': 'disabled in config'}
+        
+        try:
+            logger.info("\n" + "🟠 " * 40)
+            logger.info("RUNNING COMMODITIES PIPELINE")
+            logger.info("🟠 " * 40)
+            
+            commodities_config = self.config['commodities']
+            symbols = commodities_config.get('symbols', ['CL=F', 'GC=F', 'SI=F'])
+            days = commodities_config.get('days', 30)
+            source = commodities_config.get('source', 'yahoo')
+            
+            run_commodity_pipeline(symbols=symbols, days=days, source=source)
+            
+            return {'status': 'success', 'symbols': symbols, 'count': len(symbols)}
+        except Exception as e:
+            logger.error(f"Commodities pipeline failed: {str(e)}")
+            return {'status': 'failed', 'error': str(e)}
+    
     def print_summary(self):
         """Print execution summary."""
         logger.info("\n" + "=" * 80)
@@ -208,6 +233,18 @@ class UnifiedPipeline:
             else:
                 logger.info(f"   {result.get('reason', 'Not run')}")
         
+        # Commodities
+        if 'commodities' in self.results:
+            result = self.results['commodities']
+            icon = "✅" if result['status'] == 'success' else "❌" if result['status'] == 'failed' else "⏭️"
+            logger.info(f"\n{icon} Commodities:")
+            if result['status'] == 'success':
+                logger.info(f"   Loaded {result.get('count', 0)} symbols: {result.get('symbols', [])}")
+            elif result['status'] == 'failed':
+                logger.info(f"   Error: {result.get('error', 'Unknown')}")
+            else:
+                logger.info(f"   {result.get('reason', 'Not run')}")
+        
         logger.info("\n" + "=" * 80)
         if failed == 0:
             logger.info("🎉 All enabled pipelines completed successfully!")
@@ -230,7 +267,7 @@ class UnifiedPipeline:
         logger.info(f"Start Time: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
         
         if pipelines is None:
-            pipelines = ['stocks', 'crypto', 'bonds', 'economic']
+            pipelines = ['stocks', 'crypto', 'bonds', 'economic', 'commodities']
         
         logger.info(f"Pipelines to run: {pipelines}")
         
@@ -260,6 +297,9 @@ class UnifiedPipeline:
         
         if 'economic' in pipelines:
             self.results['economic'] = self.run_economic()
+        
+        if 'commodities' in pipelines:
+            self.results['commodities'] = self.run_commodities()
         
         end_time = datetime.now()
         duration = end_time - start_time
@@ -303,6 +343,11 @@ def main():
         help="Run economic indicators pipeline"
     )
     parser.add_argument(
+        "--commodities",
+        action="store_true",
+        help="Run commodities pipeline"
+    )
+    parser.add_argument(
         "--config",
         type=str,
         default="config/pipeline_config.yaml",
@@ -314,7 +359,7 @@ def main():
     # Determine which pipelines to run
     pipelines = []
     if args.all:
-        pipelines = ['stocks', 'crypto', 'bonds', 'economic']
+        pipelines = ['stocks', 'crypto', 'bonds', 'economic', 'commodities']
     else:
         if args.stocks:
             pipelines.append('stocks')
@@ -324,10 +369,12 @@ def main():
             pipelines.append('bonds')
         if args.economic:
             pipelines.append('economic')
+        if args.commodities:
+            pipelines.append('commodities')
     
     # If no specific pipeline selected, run all
     if not pipelines:
-        pipelines = ['stocks', 'crypto', 'bonds', 'economic']
+        pipelines = ['stocks', 'crypto', 'bonds', 'economic', 'commodities']
     
     # Create and run unified pipeline
     unified = UnifiedPipeline(config_path=args.config)

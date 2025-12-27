@@ -60,16 +60,32 @@
 - **Script:** `economic_etl_pipeline.py`
 - **Example:** `python economic_etl_pipeline.py --indicators UNRATE CPIAUCSL GDP --days 365`
 
+### ✅ Commodities Pipeline (NEW - 2025-12-22)
+- **Status:** Fully functional
+- **Data Sources:** Yahoo Finance & FRED API
+- **Commodities:** 17 commodities across 3 categories
+  - Energy: WTI Oil (CL=F), Brent (BZ=F), Natural Gas (NG=F), Gasoline, Heating Oil
+  - Metals: Gold (GC=F), Silver (SI=F), Platinum, Palladium, Copper (HG=F)
+  - Agriculture: Corn, Soybeans, Wheat, Coffee, Sugar, Cocoa, Cotton
+- **Features:**
+  - OHLCV futures data from Yahoo Finance
+  - Spot prices from FRED
+  - Dual-source support (yahoo/fred/both)
+  - Star schema: dim_commodity, fact_commodity_price
+- **Testing:** Verified with 95 price records (5 commodities x 19 days)
+- **Script:** `commodity_etl_pipeline.py`
+- **Example:** `python commodity_etl_pipeline.py --symbols CL=F GC=F --source yahoo --days 30`
+
 ### ✅ Unified Pipeline Orchestrator (NEW - Option B)
 - **Status:** Fully functional
 - **Features:**
   - **Single command** to run all data sources: `python unified_pipeline.py --all`
-  - **Selective execution:** `--stocks`, `--crypto`, `--bonds`, `--economic`
+  - **Selective execution:** `--stocks`, `--crypto`, `--bonds`, `--economic`, `--commodities`
   - **YAML configuration:** `config/pipeline_config.yaml`
   - Enable/disable sources, customize tickers/symbols/indicators
   - Comprehensive error handling and logging
   - Parallel or sequential execution
-- **Testing:** Successfully loads 67 crypto records in 13 seconds
+- **Testing:** Successfully loads data for all 5 asset classes
 - **Script:** `unified_pipeline.py`
 - **Configuration:** Edit `config/pipeline_config.yaml` to customize behavior
 
@@ -141,6 +157,7 @@
 - `dim_crypto_asset`: Cryptocurrency assets (BTC, ETH, ADA, etc.) **[NEW]**
 - `dim_bond`: Bond/treasury information (3MO, 10Y, 30Y, etc.) **[NEW]**
 - `dim_issuer`: Bond issuer info (US Treasury, etc.) **[NEW]**
+- `dim_commodity`: Commodity information (CL=F, GC=F, etc.) **[NEW - 2025-12-22]**
 - `dim_economic_indicator`: Economic indicator metadata (15 indicators) **[NEW]**
 - `dim_date`: Date dimension (covers 37+ years)
 - `dim_filing_type`: SEC filing types (10-K, 10-Q, 8-K)
@@ -151,6 +168,7 @@
 - `fact_stock_price`: Daily OHLCV stock data (90,000+ records)
 - `fact_crypto_price`: Cryptocurrency prices and market data **[NEW]**
 - `fact_bond_price`: Treasury yields and bond prices **[NEW]**
+- `fact_commodity_price`: Commodity futures and spot prices **[NEW - 2025-12-22]**
 - `fact_economic_indicator`: Economic indicators time series **[NEW]**
 - `fact_sec_filing`: SEC filing metadata and text
 - `fact_filing_analysis`: SEC filing section analysis
@@ -182,12 +200,14 @@ Full ETL pipelines for crypto, bonds, and economic indicators with database inte
 4. **Individual ETL Pipelines**
    - `crypto_etl_pipeline.py` - Crypto pipeline
    - `bond_etl_pipeline.py` - Bond pipeline (FRED & Yahoo)
+   - `commodity_etl_pipeline.py` - Commodity pipeline (Yahoo & FRED) **[NEW - 2025-12-22]**
    - `economic_etl_pipeline.py` - Economic indicators pipeline
 
 5. **Unified Pipeline**
    - `unified_pipeline.py` - Orchestrates all pipelines
    - `config/pipeline_config.yaml` - Configuration file
    - Command: `python unified_pipeline.py --all`
+   - Now includes `--commodities` flag **[NEW - 2025-12-22]**
 
 6. **Query Tools**
    - `query_crypto.py` - Query cryptocurrency data
@@ -195,6 +215,7 @@ Full ETL pipelines for crypto, bonds, and economic indicators with database inte
 
 7. **Testing**
    - `test_all_sources.py` - Comprehensive test suite
+   - `test_commodity_sources.py` - Commodity source comparison **[NEW - 2025-12-22]**
    - All extractors verified working
 
 ## Configuration Files

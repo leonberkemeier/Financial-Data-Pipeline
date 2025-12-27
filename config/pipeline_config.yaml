@@ -44,6 +44,23 @@ economic:
   days: 365
   source: "fred"
 
+commodities:
+  enabled: true
+  symbols:
+    # Energy
+    - CL=F    # WTI Crude Oil
+    - NG=F    # Natural Gas
+    # Metals
+    - GC=F    # Gold
+    - SI=F    # Silver
+    - HG=F    # Copper
+  days: 30
+  source: "yahoo"  # yahoo or fred or both
+  # For FRED, use series IDs like: DCOILWTICO, GOLDAMGBD228NLBM
+  # fred_series:
+  #   - DCOILWTICO
+  #   - GOLDAMGBD228NLBM
+
 # Pipeline execution settings
 execution:
   parallel: false  # Run pipelines in parallel (experimental)

@@ -4,7 +4,7 @@ A production-ready ETL pipeline that aggregates financial data from multiple sou
 
 ## 🌟 Features
 
-- **Multi-Asset Support**: Stocks, Crypto, Bonds, and Economic Indicators
+- **Multi-Asset Support**: Stocks, Crypto, Bonds, Commodities, and Economic Indicators
 - **Multi-Source Extraction**: Yahoo Finance, CoinGecko, FRED, Alpha Vantage
 - **Star Schema Design**: Dimensional modeling with fact and dimension tables
 - **Unified Pipeline**: Single command to run all data sources
@@ -20,6 +20,7 @@ A production-ready ETL pipeline that aggregates financial data from multiple sou
 - `fact_stock_price`: Daily stock prices with OHLCV data
 - `fact_crypto_price`: Cryptocurrency prices and market data
 - `fact_bond_price`: Treasury yields and bond prices
+- `fact_commodity_price`: Commodity futures and spot prices
 - `fact_economic_indicator`: Economic indicators time series
 - `fact_company_metrics`: Company fundamental metrics
 - `fact_sec_filing`: SEC filings data
@@ -29,6 +30,7 @@ A production-ready ETL pipeline that aggregates financial data from multiple sou
 - `dim_crypto_asset`: Cryptocurrency asset information
 - `dim_bond`: Bond/treasury information
 - `dim_issuer`: Bond issuer information
+- `dim_commodity`: Commodity information (oil, gold, etc.)
 - `dim_economic_indicator`: Economic indicator metadata
 - `dim_date`: Date dimension with calendar attributes
 - `dim_exchange`: Exchange information
@@ -100,11 +102,14 @@ python unified_pipeline.py --all
 # Just crypto and bonds
 python unified_pipeline.py --crypto --bonds
 
+# Just commodities
+python unified_pipeline.py --commodities
+
 # Just economic indicators
 python unified_pipeline.py --economic
 
-# Just stocks
-python unified_pipeline.py --stocks
+# Commodities and crypto
+python unified_pipeline.py --commodities --crypto
 ```
 
 **Configuration:**
@@ -134,6 +139,18 @@ python bond_etl_pipeline.py --periods 3MO 10Y 30Y --source yahoo --days 30
 **Economic Indicators:**
 ```bash
 python economic_etl_pipeline.py --indicators GDP UNRATE CPIAUCSL --days 365
+```
+
+**Commodities:**
+```bash
+# Yahoo Finance (futures)
+python commodity_etl_pipeline.py --symbols CL=F GC=F SI=F --source yahoo --days 30
+
+# FRED (spot prices)
+python commodity_etl_pipeline.py --source fred --days 90
+
+# Both sources
+python commodity_etl_pipeline.py --source both --days 30
 ```
 
 ### Query Your Data
@@ -195,6 +212,17 @@ See `dashboard/README.md` for more details.
 **Tickers:** Any US stock (AAPL, MSFT, GOOGL, etc.)
 **Data:** OHLCV, company info, fundamentals
 
+### Commodities (Yahoo Finance & FRED)
+**17 commodities across 3 categories:**
+- **Energy:** WTI Crude Oil (CL=F), Brent Crude (BZ=F), Natural Gas (NG=F), Gasoline (RB=F), Heating Oil (HO=F)
+- **Metals:** Gold (GC=F), Silver (SI=F), Platinum (PL=F), Palladium (PA=F), Copper (HG=F)
+- **Agriculture:** Corn (ZC=F), Soybeans (ZS=F), Wheat (ZW=F), Coffee (KC=F), Sugar (SB=F), Cocoa (CC=F), Cotton (CT=F)
+
+**Data:** OHLCV for futures (Yahoo), spot prices (FRED)
+**Sources:**
+- Yahoo Finance: Real-time futures contracts
+- FRED: Official spot/reference prices (DCOILWTICO, GOLDAMGBD228NLBM, etc.)
+
 ## 📁 Project Structure
 
 ```
@@ -208,6 +236,8 @@ financial_data_aggregator/
 │   │   ├── crypto_gecko.py    # CoinGecko (crypto)
 │   │   ├── fred_bond.py       # FRED (bonds)
 │   │   ├── yahoo_bond.py      # Yahoo Finance (bonds)
+│   │   ├── yahoo_commodity.py # Yahoo Finance (commodities)
+│   │   ├── fred_commodity.py  # FRED (commodities)
 │   │   ├── economic_indicators.py  # FRED (economic data)
 │   │   └── alpha_vantage.py   # Alpha Vantage (stocks)
 │   ├── transformers/
@@ -224,10 +254,12 @@ financial_data_aggregator/
 ├── pipeline.py                 # Stock ETL pipeline
 ├── crypto_etl_pipeline.py      # Crypto ETL pipeline
 ├── bond_etl_pipeline.py        # Bond ETL pipeline  
+├── commodity_etl_pipeline.py   # Commodity ETL pipeline
 ├── economic_etl_pipeline.py    # Economic ETL pipeline
 ├── unified_pipeline.py         # Orchestrates all pipelines
 ├── query_crypto.py             # Query crypto data
 ├── test_all_sources.py         # Test all extractors
+├── test_commodity_sources.py   # Test commodity extractors
 └── README.md                   # This file
 ```
 
@@ -299,6 +331,37 @@ JOIN dim_economic_indicator ei ON f.indicator_id = ei.indicator_id
 JOIN dim_date d ON f.date_id = d.date_id
 WHERE d.date = (SELECT MAX(date) FROM dim_date)
 ORDER BY ei.category, ei.indicator_code;
+```
+
+### Commodity Queries
+```sql
+-- Track commodity prices by category
+SELECT 
+    c.category,
+    c.symbol,
+    c.name,
+    d.date,
+    f.close_price,
+    f.price_change_percent
+FROM fact_commodity_price f
+JOIN dim_commodity c ON f.commodity_id = c.commodity_id
+JOIN dim_date d ON f.date_id = d.date_id
+WHERE c.category = 'Energy'
+ORDER BY d.date DESC, c.symbol
+LIMIT 20;
+
+-- Compare commodity performance
+SELECT 
+    c.name,
+    c.symbol,
+    AVG(f.close_price) as avg_price,
+    MAX(f.close_price) as high_price,
+    MIN(f.close_price) as low_price,
+    AVG(f.volume) as avg_volume
+FROM fact_commodity_price f
+JOIN dim_commodity c ON f.commodity_id = c.commodity_id
+GROUP BY c.commodity_id, c.name, c.symbol
+ORDER BY avg_price DESC;
 ```
 
 ## 📝 Logging
