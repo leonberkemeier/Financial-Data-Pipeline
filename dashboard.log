@@ -10,25 +10,12 @@ Connecting to database: sqlite:////home/archy/Desktop/Server/FinancialData/finan
  * Restarting with stat
  * Debugger is active!
  * Debugger PIN: 251-481-202
-127.0.0.1 - - [27/Dec/2025 23:39:49] "GET / HTTP/1.1" 200 -
-127.0.0.1 - - [27/Dec/2025 23:40:11] "GET / HTTP/1.1" 200 -
-127.0.0.1 - - [27/Dec/2025 23:40:11] "[36mGET /static/css/style.css HTTP/1.1[0m" 304 -
-127.0.0.1 - - [27/Dec/2025 23:40:11] "[33mGET /favicon.ico HTTP/1.1[0m" 404 -
-127.0.0.1 - - [27/Dec/2025 23:40:13] "GET / HTTP/1.1" 200 -
-127.0.0.1 - - [27/Dec/2025 23:40:13] "[36mGET /static/css/style.css HTTP/1.1[0m" 304 -
-127.0.0.1 - - [27/Dec/2025 23:40:16] "GET /crypto HTTP/1.1" 200 -
-127.0.0.1 - - [27/Dec/2025 23:40:16] "[36mGET /static/css/style.css HTTP/1.1[0m" 304 -
-127.0.0.1 - - [27/Dec/2025 23:40:20] "GET /commodities HTTP/1.1" 200 -
-127.0.0.1 - - [27/Dec/2025 23:40:20] "[36mGET /static/css/style.css HTTP/1.1[0m" 304 -
-127.0.0.1 - - [27/Dec/2025 23:40:43] "GET / HTTP/1.1" 200 -
-127.0.0.1 - - [27/Dec/2025 23:40:43] "[36mGET /static/css/style.css HTTP/1.1[0m" 304 -
-127.0.0.1 - - [27/Dec/2025 23:40:44] "GET /crypto HTTP/1.1" 200 -
-127.0.0.1 - - [27/Dec/2025 23:40:44] "[36mGET /static/css/style.css HTTP/1.1[0m" 304 -
-127.0.0.1 - - [27/Dec/2025 23:40:58] "GET /commodities HTTP/1.1" 200 -
-127.0.0.1 - - [27/Dec/2025 23:40:58] "[36mGET /static/css/style.css HTTP/1.1[0m" 304 -
-127.0.0.1 - - [27/Dec/2025 23:41:06] "GET /economic HTTP/1.1" 200 -
-127.0.0.1 - - [27/Dec/2025 23:41:06] "[36mGET /static/css/style.css HTTP/1.1[0m" 304 -
-127.0.0.1 - - [27/Dec/2025 23:41:17] "GET /chat HTTP/1.1" 200 -
-127.0.0.1 - - [27/Dec/2025 23:41:17] "[36mGET /static/css/style.css HTTP/1.1[0m" 304 -
-127.0.0.1 - - [27/Dec/2025 23:41:19] "GET /compare HTTP/1.1" 200 -
-127.0.0.1 - - [27/Dec/2025 23:41:19] "[36mGET /static/css/style.css HTTP/1.1[0m" 304 -
+127.0.0.1 - - [27/Dec/2025 23:46:03] "GET /crypto HTTP/1.1" 200 -
+127.0.0.1 - - [27/Dec/2025 23:46:15] "GET /crypto HTTP/1.1" 200 -
+127.0.0.1 - - [27/Dec/2025 23:46:15] "[36mGET /static/css/style.css HTTP/1.1[0m" 304 -
+127.0.0.1 - - [27/Dec/2025 23:46:41] "GET /crypto HTTP/1.1" 200 -
+127.0.0.1 - - [27/Dec/2025 23:46:41] "[36mGET /static/css/style.css HTTP/1.1[0m" 304 -
+127.0.0.1 - - [27/Dec/2025 23:46:42] "GET / HTTP/1.1" 200 -
+127.0.0.1 - - [27/Dec/2025 23:46:42] "[36mGET /static/css/style.css HTTP/1.1[0m" 304 -
+127.0.0.1 - - [27/Dec/2025 23:46:45] "GET /commodities HTTP/1.1" 200 -
+127.0.0.1 - - [27/Dec/2025 23:46:45] "[36mGET /static/css/style.css HTTP/1.1[0m" 304 -

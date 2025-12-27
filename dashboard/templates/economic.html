@@ -6,6 +6,13 @@
 <div class="dashboard">
     <h2>📈 Economic Indicators</h2>
     
+    {% if chart_html %}
+    <div class="section">
+        <h3>Historical Values Chart</h3>
+        {{ chart_html|safe }}
+    </div>
+    {% endif %}
+    
     <div class="section">
         <h3>All Indicators</h3>
         <table class="data-table">

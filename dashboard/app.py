@@ -393,11 +393,33 @@ def crypto():
         ORDER BY f.market_cap DESC
     """), conn)
     
+    # Get price history for all cryptos
+    price_history = pd.read_sql(text("""
+        SELECT 
+            ca.symbol,
+            d.date,
+            f.price
+        FROM fact_crypto_price f
+        JOIN dim_crypto_asset ca ON f.crypto_id = ca.crypto_id
+        JOIN dim_date d ON f.date_id = d.date_id
+        ORDER BY d.date
+    """), conn)
+    
     conn.close()
+    
+    # Create price chart
+    chart_html = None
+    if not price_history.empty:
+        fig = px.line(price_history, x='date', y='price', color='symbol',
+                     title='Cryptocurrency Price History',
+                     labels={'price': 'Price (USD)', 'date': 'Date', 'symbol': 'Crypto'})
+        fig.update_layout(template='plotly_white', height=500)
+        chart_html = fig.to_html(full_html=False, div_id="crypto-chart")
     
     return render_template('crypto.html',
                          crypto_data=crypto_data.to_dict('records'),
-                         latest_crypto=latest_crypto.to_dict('records'))
+                         latest_crypto=latest_crypto.to_dict('records'),
+                         chart_html=chart_html)
 
 
 @app.route('/commodities')
@@ -441,11 +463,35 @@ def commodities():
         ORDER BY c.category, c.symbol
     """), conn)
     
+    # Get price history
+    price_history = pd.read_sql(text("""
+        SELECT 
+            c.symbol,
+            c.name,
+            c.category,
+            d.date,
+            f.close_price
+        FROM fact_commodity_price f
+        JOIN dim_commodity c ON f.commodity_id = c.commodity_id
+        JOIN dim_date d ON f.date_id = d.date_id
+        ORDER BY d.date
+    """), conn)
+    
     conn.close()
+    
+    # Create price chart
+    chart_html = None
+    if not price_history.empty:
+        fig = px.line(price_history, x='date', y='close_price', color='symbol',
+                     title='Commodity Price History',
+                     labels={'close_price': 'Price (USD)', 'date': 'Date', 'symbol': 'Commodity'})
+        fig.update_layout(template='plotly_white', height=500)
+        chart_html = fig.to_html(full_html=False, div_id="commodity-chart")
     
     return render_template('commodities.html',
                          commodity_data=commodity_data.to_dict('records'),
-                         latest_commodities=latest_commodities.to_dict('records'))
+                         latest_commodities=latest_commodities.to_dict('records'),
+                         chart_html=chart_html)
 
 
 @app.route('/economic')
@@ -486,11 +532,34 @@ def economic():
         ORDER BY ei.category, ei.indicator_code
     """), conn)
     
+    # Get value history
+    value_history = pd.read_sql(text("""
+        SELECT 
+            ei.indicator_code,
+            ei.indicator_name,
+            d.date,
+            f.value
+        FROM fact_economic_indicator f
+        JOIN dim_economic_indicator ei ON f.indicator_id = ei.indicator_id
+        JOIN dim_date d ON f.date_id = d.date_id
+        ORDER BY d.date
+    """), conn)
+    
     conn.close()
+    
+    # Create value chart
+    chart_html = None
+    if not value_history.empty:
+        fig = px.line(value_history, x='date', y='value', color='indicator_code',
+                     title='Economic Indicators Over Time',
+                     labels={'value': 'Value', 'date': 'Date', 'indicator_code': 'Indicator'})
+        fig.update_layout(template='plotly_white', height=500)
+        chart_html = fig.to_html(full_html=False, div_id="economic-chart")
     
     return render_template('economic.html',
                          indicator_data=indicator_data.to_dict('records'),
-                         latest_economic=latest_economic.to_dict('records'))
+                         latest_economic=latest_economic.to_dict('records'),
+                         chart_html=chart_html)
 
 
 @app.route('/compare')

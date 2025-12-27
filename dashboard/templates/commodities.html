@@ -6,6 +6,13 @@
 <div class="dashboard">
     <h2>🛢️ Commodities Overview</h2>
     
+    {% if chart_html %}
+    <div class="section">
+        <h3>Price History Chart</h3>
+        {{ chart_html|safe }}
+    </div>
+    {% endif %}
+    
     <div class="section">
         <h3>All Commodities</h3>
         <table class="data-table">
