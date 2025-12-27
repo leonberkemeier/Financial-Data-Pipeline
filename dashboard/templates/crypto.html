@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}Cryptocurrencies - Financial Data{% endblock %}
+
+{% block content %}
+<div class="dashboard">
+    <h2>₿ Cryptocurrency Overview</h2>
+    
+    <div class="section">
+        <h3>All Cryptocurrencies</h3>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Symbol</th>
+                    <th>Name</th>
+                    <th>Blockchain</th>
+                    <th>Latest Data</th>
+                    <th>Data Points</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for crypto in crypto_data %}
+                <tr>
+                    <td><strong>{{ crypto.symbol }}</strong></td>
+                    <td>{{ crypto.name }}</td>
+                    <td>{{ crypto.chain or 'N/A' }}</td>
+                    <td>{{ crypto.latest_date or 'N/A' }}</td>
+                    <td>{{ crypto.data_points }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5">No cryptocurrency data available</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <div class="section">
+        <h3>Latest Prices</h3>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Symbol</th>
+                    <th>Name</th>
+                    <th>Price (USD)</th>
+                    <th>Market Cap</th>
+                    <th>24h Volume</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for crypto in latest_crypto %}
+                <tr>
+                    <td><strong>{{ crypto.symbol }}</strong></td>
+                    <td>{{ crypto.name }}</td>
+                    <td>${{ "{:,.2f}".format(crypto.price) }}</td>
+                    <td>${{ "{:,.0f}".format(crypto.market_cap) if crypto.market_cap else 'N/A' }}</td>
+                    <td>${{ "{:,.0f}".format(crypto.trading_volume) if crypto.trading_volume else 'N/A' }}</td>
+                    <td>{{ crypto.date }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6">No recent price data available</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <div class="section">
+        <h3>Market Overview</h3>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>{{ crypto_data|length }}</h3>
+                <p>Total Cryptocurrencies</p>
+            </div>
+            <div class="stat-card">
+                <h3>${{ "{:,.0f}".format(latest_crypto|sum(attribute='market_cap')|default(0)) }}</h3>
+                <p>Total Market Cap</p>
+            </div>
+            <div class="stat-card">
+                <h3>${{ "{:,.0f}".format(latest_crypto|sum(attribute='trading_volume')|default(0)) }}</h3>
+                <p>Total 24h Volume</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="info-box">
+        <p><strong>📊 Data Source:</strong> CoinGecko API</p>
+        <p><strong>🔄 Update Frequency:</strong> Daily</p>
+        <p><strong>ℹ️ Note:</strong> Due to API rate limits, crypto data updates may be limited. The free tier allows ~10-50 requests per minute.</p>
+    </div>
+</div>
+{% endblock %}

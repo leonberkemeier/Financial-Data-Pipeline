@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block title %}Economic Indicators - Financial Data{% endblock %}
+
+{% block content %}
+<div class="dashboard">
+    <h2>📈 Economic Indicators</h2>
+    
+    <div class="section">
+        <h3>All Indicators</h3>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Code</th>
+                    <th>Name</th>
+                    <th>Category</th>
+                    <th>Unit</th>
+                    <th>Frequency</th>
+                    <th>Latest Data</th>
+                    <th>Data Points</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for indicator in indicator_data %}
+                <tr>
+                    <td><strong>{{ indicator.indicator_code }}</strong></td>
+                    <td>{{ indicator.indicator_name }}</td>
+                    <td>
+                        {% if indicator.category == 'GDP' %}💰
+                        {% elif indicator.category == 'Employment' %}👥
+                        {% elif indicator.category == 'Inflation' %}📊
+                        {% elif indicator.category == 'Interest Rates' %}💹
+                        {% endif %}
+                        {{ indicator.category }}
+                    </td>
+                    <td>{{ indicator.unit or 'N/A' }}</td>
+                    <td>{{ indicator.frequency or 'N/A' }}</td>
+                    <td>{{ indicator.latest_date or 'N/A' }}</td>
+                    <td>{{ indicator.data_points }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="7">No economic indicators available</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <div class="section">
+        <h3>Latest Values</h3>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Code</th>
+                    <th>Name</th>
+                    <th>Category</th>
+                    <th>Value</th>
+                    <th>Unit</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for indicator in latest_economic %}
+                <tr>
+                    <td><strong>{{ indicator.indicator_code }}</strong></td>
+                    <td>{{ indicator.indicator_name }}</td>
+                    <td>{{ indicator.category }}</td>
+                    <td class="value-cell">{{ "%.2f"|format(indicator.value) }}</td>
+                    <td>{{ indicator.unit }}</td>
+                    <td>{{ indicator.date }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6">No recent data available</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <div class="section">
+        <h3>Key Metrics</h3>
+        <div class="stats-grid">
+            {% for indicator in latest_economic %}
+            <div class="stat-card">
+                <h3>{{ "%.2f"|format(indicator.value) }}</h3>
+                <p>{{ indicator.indicator_code }}</p>
+                <small>{{ indicator.indicator_name }}</small>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <div class="section">
+        <h3>Category Breakdown</h3>
+        <div class="stats-grid">
+            {% set gdp = indicator_data|selectattr('category', 'equalto', 'GDP')|list|length %}
+            {% set employment = indicator_data|selectattr('category', 'equalto', 'Employment')|list|length %}
+            {% set inflation = indicator_data|selectattr('category', 'equalto', 'Inflation')|list|length %}
+            {% set interest = indicator_data|selectattr('category', 'equalto', 'Interest Rates')|list|length %}
+            
+            <div class="stat-card">
+                <h3>{{ gdp }}</h3>
+                <p>💰 GDP</p>
+            </div>
+            <div class="stat-card">
+                <h3>{{ employment }}</h3>
+                <p>👥 Employment</p>
+            </div>
+            <div class="stat-card">
+                <h3>{{ inflation }}</h3>
+                <p>📊 Inflation</p>
+            </div>
+            <div class="stat-card">
+                <h3>{{ interest }}</h3>
+                <p>💹 Interest Rates</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="info-box">
+        <p><strong>📊 Data Source:</strong> Federal Reserve Economic Data (FRED)</p>
+        <p><strong>🔄 Update Frequency:</strong> Varies by indicator (Monthly, Quarterly, Annual)</p>
+        <p><strong>ℹ️ Coverage:</strong> GDP, Unemployment Rate, CPI, Federal Funds Rate, and more</p>
+        <p><strong>📅 Note:</strong> Economic data typically has a delay of 1-2 months due to reporting schedules</p>
+    </div>
+</div>
+{% endblock %}

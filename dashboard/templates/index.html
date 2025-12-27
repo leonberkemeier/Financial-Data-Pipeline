@@ -4,24 +4,33 @@
 
 {% block content %}
 <div class="dashboard">
-    <h2>Market Overview</h2>
+    <h2>Financial Data Aggregator - Multi-Asset Dashboard</h2>
     
     <div class="stats-grid">
         <div class="stat-card">
-            <h3>{{ stats.total_companies }}</h3>
-            <p>Companies Tracked</p>
+            <h3>{{ stock_stats.total_companies if stock_stats else 0 }}</h3>
+            <p>📊 Stocks</p>
+            <small>{{ stock_stats.total_records if stock_stats else 0 }} records</small>
         </div>
         <div class="stat-card">
-            <h3>{{ stats.total_records }}</h3>
-            <p>Total Records</p>
+            <h3>{{ crypto_stats.total_cryptos if crypto_stats else 0 }}</h3>
+            <p>₿ Cryptocurrencies</p>
+            <small>{{ crypto_stats.total_records if crypto_stats else 0 }} records</small>
         </div>
         <div class="stat-card">
-            <h3>{{ stats.total_dates }}</h3>
-            <p>Trading Days</p>
+            <h3>{{ commodity_stats.total_commodities if commodity_stats else 0 }}</h3>
+            <p>🛢️ Commodities</p>
+            <small>{{ commodity_stats.total_records if commodity_stats else 0 }} records</small>
         </div>
         <div class="stat-card">
-            <h3>{{ stats.latest_date }}</h3>
-            <p>Latest Data</p>
+            <h3>{{ bond_stats.total_bonds if bond_stats else 0 }}</h3>
+            <p>📜 Bonds</p>
+            <small>{{ bond_stats.total_records if bond_stats else 0 }} records</small>
+        </div>
+        <div class="stat-card">
+            <h3>{{ economic_stats.total_indicators if economic_stats else 0 }}</h3>
+            <p>📈 Economic Indicators</p>
+            <small>{{ economic_stats.total_records if economic_stats else 0 }} records</small>
         </div>
     </div>
 
@@ -52,7 +61,7 @@
     </div>
 
     <div class="section">
-        <h3>Latest Prices</h3>
+        <h3>📊 Latest Stock Prices</h3>
         <table class="data-table">
             <thead>
                 <tr>
@@ -78,6 +87,92 @@
                     <td>{{ "{:,.0f}".format(stock.volume) }}</td>
                     <td><a href="{{ url_for('stock_detail', ticker=stock.ticker) }}" class="btn-small">View</a></td>
                 </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <div class="section">
+        <h3>₿ Latest Cryptocurrency Prices</h3>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Symbol</th>
+                    <th>Name</th>
+                    <th>Price</th>
+                    <th>Market Cap</th>
+                    <th>24h Volume</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for crypto in latest_crypto %}
+                <tr>
+                    <td><strong>{{ crypto.symbol }}</strong></td>
+                    <td>{{ crypto.name }}</td>
+                    <td>${{ "{:,.2f}".format(crypto.price) }}</td>
+                    <td>${{ "{:,.0f}".format(crypto.market_cap) if crypto.market_cap else 'N/A' }}</td>
+                    <td>${{ "{:,.0f}".format(crypto.trading_volume) if crypto.trading_volume else 'N/A' }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5">No cryptocurrency data available</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <div class="section">
+        <h3>🛢️ Latest Commodity Prices</h3>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Symbol</th>
+                    <th>Name</th>
+                    <th>Category</th>
+                    <th>Price</th>
+                    <th>Change %</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for commodity in latest_commodities %}
+                <tr>
+                    <td><strong>{{ commodity.symbol }}</strong></td>
+                    <td>{{ commodity.name }}</td>
+                    <td>{{ commodity.category }}</td>
+                    <td>${{ "%.2f"|format(commodity.close_price) }}</td>
+                    <td class="{% if commodity.price_change_percent > 0 %}positive{% else %}negative{% endif %}">
+                        {{ "%.2f"|format(commodity.price_change_percent) if commodity.price_change_percent else 'N/A' }}%
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5">No commodity data available</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <div class="section">
+        <h3>📈 Latest Economic Indicators</h3>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Code</th>
+                    <th>Name</th>
+                    <th>Category</th>
+                    <th>Value</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for indicator in latest_economic %}
+                <tr>
+                    <td><strong>{{ indicator.indicator_code }}</strong></td>
+                    <td>{{ indicator.indicator_name }}</td>
+                    <td>{{ indicator.category }}</td>
+                    <td>{{ "%.2f"|format(indicator.value) }}</td>
+                    <td>{{ indicator.date }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5">No economic data available</td></tr>
                 {% endfor %}
             </tbody>
         </table>

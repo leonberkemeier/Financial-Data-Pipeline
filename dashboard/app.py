@@ -48,11 +48,10 @@ def index():
     """Main dashboard page."""
     conn = get_db_connection()
     
-    # Get summary stats
-    stats = conn.execute(text("""
+    # Get summary stats for all asset types
+    stock_stats = conn.execute(text("""
         SELECT 
             COUNT(DISTINCT c.ticker) as total_companies,
-            COUNT(DISTINCT d.date) as total_dates,
             COUNT(*) as total_records,
             MAX(d.date) as latest_date
         FROM fact_stock_price f
@@ -60,7 +59,47 @@ def index():
         JOIN dim_date d ON f.date_id = d.date_id
     """)).fetchone()
     
-    # Get latest prices
+    crypto_stats = conn.execute(text("""
+        SELECT 
+            COUNT(DISTINCT ca.symbol) as total_cryptos,
+            COUNT(*) as total_records,
+            MAX(d.date) as latest_date
+        FROM fact_crypto_price f
+        JOIN dim_crypto_asset ca ON f.crypto_id = ca.crypto_id
+        JOIN dim_date d ON f.date_id = d.date_id
+    """)).fetchone()
+    
+    commodity_stats = conn.execute(text("""
+        SELECT 
+            COUNT(DISTINCT c.symbol) as total_commodities,
+            COUNT(*) as total_records,
+            MAX(d.date) as latest_date
+        FROM fact_commodity_price f
+        JOIN dim_commodity c ON f.commodity_id = c.commodity_id
+        JOIN dim_date d ON f.date_id = d.date_id
+    """)).fetchone()
+    
+    bond_stats = conn.execute(text("""
+        SELECT 
+            COUNT(DISTINCT b.isin) as total_bonds,
+            COUNT(*) as total_records,
+            MAX(d.date) as latest_date
+        FROM fact_bond_price f
+        JOIN dim_bond b ON f.bond_id = b.bond_id
+        JOIN dim_date d ON f.date_id = d.date_id
+    """)).fetchone()
+    
+    economic_stats = conn.execute(text("""
+        SELECT 
+            COUNT(DISTINCT ei.indicator_code) as total_indicators,
+            COUNT(*) as total_records,
+            MAX(d.date) as latest_date
+        FROM fact_economic_indicator f
+        JOIN dim_economic_indicator ei ON f.indicator_id = ei.indicator_id
+        JOIN dim_date d ON f.date_id = d.date_id
+    """)).fetchone()
+    
+    # Get latest stock prices
     latest_prices = pd.read_sql(text("""
         SELECT 
             c.ticker,
@@ -78,16 +117,70 @@ def index():
     """), conn)
     
     # Get top movers
-    top_gainers = latest_prices.nlargest(5, 'price_change_percent')[['ticker', 'price_change_percent']].to_dict('records')
-    top_losers = latest_prices.nsmallest(5, 'price_change_percent')[['ticker', 'price_change_percent']].to_dict('records')
+    top_gainers = latest_prices.nlargest(5, 'price_change_percent')[['ticker', 'price_change_percent']].to_dict('records') if not latest_prices.empty else []
+    top_losers = latest_prices.nsmallest(5, 'price_change_percent')[['ticker', 'price_change_percent']].to_dict('records') if not latest_prices.empty else []
+    
+    # Get latest crypto prices
+    latest_crypto = pd.read_sql(text("""
+        SELECT 
+            ca.symbol,
+            ca.name,
+            d.date,
+            f.price,
+            f.market_cap,
+            f.trading_volume
+        FROM fact_crypto_price f
+        JOIN dim_crypto_asset ca ON f.crypto_id = ca.crypto_id
+        JOIN dim_date d ON f.date_id = d.date_id
+        WHERE d.date = (SELECT MAX(date) FROM dim_date WHERE date_id IN (SELECT date_id FROM fact_crypto_price))
+        ORDER BY ca.symbol
+    """), conn)
+    
+    # Get latest commodities
+    latest_commodities = pd.read_sql(text("""
+        SELECT 
+            c.symbol,
+            c.name,
+            c.category,
+            d.date,
+            f.close_price,
+            f.price_change_percent
+        FROM fact_commodity_price f
+        JOIN dim_commodity c ON f.commodity_id = c.commodity_id
+        JOIN dim_date d ON f.date_id = d.date_id
+        WHERE d.date = (SELECT MAX(date) FROM dim_date WHERE date_id IN (SELECT date_id FROM fact_commodity_price))
+        ORDER BY c.symbol
+    """), conn)
+    
+    # Get latest economic indicators
+    latest_economic = pd.read_sql(text("""
+        SELECT 
+            ei.indicator_code,
+            ei.indicator_name,
+            ei.category,
+            d.date,
+            f.value
+        FROM fact_economic_indicator f
+        JOIN dim_economic_indicator ei ON f.indicator_id = ei.indicator_id
+        JOIN dim_date d ON f.date_id = d.date_id
+        WHERE d.date = (SELECT MAX(date) FROM dim_date WHERE date_id IN (SELECT date_id FROM fact_economic_indicator))
+        ORDER BY ei.indicator_code
+    """), conn)
     
     conn.close()
     
     return render_template('index.html',
-                         stats=stats,
+                         stock_stats=stock_stats,
+                         crypto_stats=crypto_stats,
+                         commodity_stats=commodity_stats,
+                         bond_stats=bond_stats,
+                         economic_stats=economic_stats,
                          latest_prices=latest_prices.to_dict('records'),
                          top_gainers=top_gainers,
-                         top_losers=top_losers)
+                         top_losers=top_losers,
+                         latest_crypto=latest_crypto.to_dict('records'),
+                         latest_commodities=latest_commodities.to_dict('records'),
+                         latest_economic=latest_economic.to_dict('records'))
 
 
 @app.route('/filings')
@@ -262,6 +355,142 @@ def stock_detail(ticker):
                          price_data=price_history.to_dict('records'),
                          sec_filings=sec_filings.to_dict('records'),
                          time_range=time_range)
+
+
+@app.route('/crypto')
+def crypto():
+    """Cryptocurrency overview page."""
+    conn = get_db_connection()
+    
+    # Get all crypto assets with latest prices
+    crypto_data = pd.read_sql(text("""
+        SELECT 
+            ca.symbol,
+            ca.name,
+            ca.chain,
+            MAX(d.date) as latest_date,
+            COUNT(f.crypto_price_id) as data_points
+        FROM dim_crypto_asset ca
+        LEFT JOIN fact_crypto_price f ON ca.crypto_id = f.crypto_id
+        LEFT JOIN dim_date d ON f.date_id = d.date_id
+        GROUP BY ca.symbol, ca.name, ca.chain
+        ORDER BY ca.symbol
+    """), conn)
+    
+    # Get latest prices with details
+    latest_crypto = pd.read_sql(text("""
+        SELECT 
+            ca.symbol,
+            ca.name,
+            d.date,
+            f.price,
+            f.market_cap,
+            f.trading_volume
+        FROM fact_crypto_price f
+        JOIN dim_crypto_asset ca ON f.crypto_id = ca.crypto_id
+        JOIN dim_date d ON f.date_id = d.date_id
+        WHERE d.date = (SELECT MAX(date) FROM dim_date WHERE date_id IN (SELECT date_id FROM fact_crypto_price))
+        ORDER BY f.market_cap DESC
+    """), conn)
+    
+    conn.close()
+    
+    return render_template('crypto.html',
+                         crypto_data=crypto_data.to_dict('records'),
+                         latest_crypto=latest_crypto.to_dict('records'))
+
+
+@app.route('/commodities')
+def commodities():
+    """Commodities overview page."""
+    conn = get_db_connection()
+    
+    # Get all commodities with latest prices
+    commodity_data = pd.read_sql(text("""
+        SELECT 
+            c.symbol,
+            c.name,
+            c.category,
+            c.unit,
+            c.exchange,
+            MAX(d.date) as latest_date,
+            COUNT(f.commodity_price_id) as data_points
+        FROM dim_commodity c
+        LEFT JOIN fact_commodity_price f ON c.commodity_id = f.commodity_id
+        LEFT JOIN dim_date d ON f.date_id = d.date_id
+        GROUP BY c.symbol, c.name, c.category, c.unit, c.exchange
+        ORDER BY c.category, c.symbol
+    """), conn)
+    
+    # Get latest prices
+    latest_commodities = pd.read_sql(text("""
+        SELECT 
+            c.symbol,
+            c.name,
+            c.category,
+            d.date,
+            f.open_price,
+            f.high_price,
+            f.low_price,
+            f.close_price,
+            f.price_change_percent
+        FROM fact_commodity_price f
+        JOIN dim_commodity c ON f.commodity_id = c.commodity_id
+        JOIN dim_date d ON f.date_id = d.date_id
+        WHERE d.date = (SELECT MAX(date) FROM dim_date WHERE date_id IN (SELECT date_id FROM fact_commodity_price))
+        ORDER BY c.category, c.symbol
+    """), conn)
+    
+    conn.close()
+    
+    return render_template('commodities.html',
+                         commodity_data=commodity_data.to_dict('records'),
+                         latest_commodities=latest_commodities.to_dict('records'))
+
+
+@app.route('/economic')
+def economic():
+    """Economic indicators overview page."""
+    conn = get_db_connection()
+    
+    # Get all indicators with latest values
+    indicator_data = pd.read_sql(text("""
+        SELECT 
+            ei.indicator_code,
+            ei.indicator_name,
+            ei.category,
+            ei.unit,
+            ei.frequency,
+            MAX(d.date) as latest_date,
+            COUNT(f.economic_data_id) as data_points
+        FROM dim_economic_indicator ei
+        LEFT JOIN fact_economic_indicator f ON ei.indicator_id = f.indicator_id
+        LEFT JOIN dim_date d ON f.date_id = d.date_id
+        GROUP BY ei.indicator_code, ei.indicator_name, ei.category, ei.unit, ei.frequency
+        ORDER BY ei.category, ei.indicator_code
+    """), conn)
+    
+    # Get latest values
+    latest_economic = pd.read_sql(text("""
+        SELECT 
+            ei.indicator_code,
+            ei.indicator_name,
+            ei.category,
+            ei.unit,
+            d.date,
+            f.value
+        FROM fact_economic_indicator f
+        JOIN dim_economic_indicator ei ON f.indicator_id = ei.indicator_id
+        JOIN dim_date d ON f.date_id = d.date_id
+        WHERE d.date = (SELECT MAX(date) FROM dim_date WHERE date_id IN (SELECT date_id FROM fact_economic_indicator))
+        ORDER BY ei.category, ei.indicator_code
+    """), conn)
+    
+    conn.close()
+    
+    return render_template('economic.html',
+                         indicator_data=indicator_data.to_dict('records'),
+                         latest_economic=latest_economic.to_dict('records'))
 
 
 @app.route('/compare')

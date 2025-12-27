@@ -285,11 +285,16 @@ class DataLoader:
             batch = price_df.iloc[i:i+batch_size]
             
             for _, row in batch.iterrows():
+                # Convert IDs to int to ensure proper comparison
+                crypto_id = int(row['crypto_id'])
+                date_id = int(row['date_id'])
+                source_id = int(row['source_id'])
+                
                 existing = self.db.execute(
                     select(FactCryptoPrice).where(
-                        FactCryptoPrice.crypto_id == row['crypto_id'],
-                        FactCryptoPrice.date_id == row['date_id'],
-                        FactCryptoPrice.source_id == row['source_id']
+                        FactCryptoPrice.crypto_id == crypto_id,
+                        FactCryptoPrice.date_id == date_id,
+                        FactCryptoPrice.source_id == source_id
                     )
                 ).scalar_one_or_none()
                 
@@ -299,7 +304,12 @@ class DataLoader:
                             setattr(existing, col, row[col])
                     logger.debug(f"Updated crypto price record")
                 else:
-                    price_record = FactCryptoPrice(**row.to_dict())
+                    # Convert row to dict and ensure integer IDs
+                    row_dict = row.to_dict()
+                    row_dict['crypto_id'] = crypto_id
+                    row_dict['date_id'] = date_id
+                    row_dict['source_id'] = source_id
+                    price_record = FactCryptoPrice(**row_dict)
                     self.db.add(price_record)
                     records_loaded += 1
             

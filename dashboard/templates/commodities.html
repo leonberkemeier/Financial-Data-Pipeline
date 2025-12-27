@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+
+{% block title %}Commodities - Financial Data{% endblock %}
+
+{% block content %}
+<div class="dashboard">
+    <h2>🛢️ Commodities Overview</h2>
+    
+    <div class="section">
+        <h3>All Commodities</h3>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Symbol</th>
+                    <th>Name</th>
+                    <th>Category</th>
+                    <th>Unit</th>
+                    <th>Exchange</th>
+                    <th>Latest Data</th>
+                    <th>Data Points</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for commodity in commodity_data %}
+                <tr>
+                    <td><strong>{{ commodity.symbol }}</strong></td>
+                    <td>{{ commodity.name }}</td>
+                    <td>
+                        {% if commodity.category == 'Energy' %}⚡
+                        {% elif commodity.category == 'Metals' %}🔩
+                        {% elif commodity.category == 'Agriculture' %}🌾
+                        {% endif %}
+                        {{ commodity.category }}
+                    </td>
+                    <td>{{ commodity.unit or 'N/A' }}</td>
+                    <td>{{ commodity.exchange or 'N/A' }}</td>
+                    <td>{{ commodity.latest_date or 'N/A' }}</td>
+                    <td>{{ commodity.data_points }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="7">No commodity data available</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <div class="section">
+        <h3>Latest Prices</h3>
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Symbol</th>
+                    <th>Name</th>
+                    <th>Category</th>
+                    <th>Open</th>
+                    <th>High</th>
+                    <th>Low</th>
+                    <th>Close</th>
+                    <th>Change %</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for commodity in latest_commodities %}
+                <tr>
+                    <td><strong>{{ commodity.symbol }}</strong></td>
+                    <td>{{ commodity.name }}</td>
+                    <td>{{ commodity.category }}</td>
+                    <td>${{ "%.2f"|format(commodity.open_price) if commodity.open_price else 'N/A' }}</td>
+                    <td>${{ "%.2f"|format(commodity.high_price) if commodity.high_price else 'N/A' }}</td>
+                    <td>${{ "%.2f"|format(commodity.low_price) if commodity.low_price else 'N/A' }}</td>
+                    <td>${{ "%.2f"|format(commodity.close_price) }}</td>
+                    <td class="{% if commodity.price_change_percent > 0 %}positive{% else %}negative{% endif %}">
+                        {{ "%.2f"|format(commodity.price_change_percent) if commodity.price_change_percent else 'N/A' }}%
+                    </td>
+                    <td>{{ commodity.date }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="9">No recent price data available</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    
+    <div class="section">
+        <h3>Category Breakdown</h3>
+        <div class="stats-grid">
+            {% set energy = commodity_data|selectattr('category', 'equalto', 'Energy')|list|length %}
+            {% set metals = commodity_data|selectattr('category', 'equalto', 'Metals')|list|length %}
+            {% set agriculture = commodity_data|selectattr('category', 'equalto', 'Agriculture')|list|length %}
+            
+            <div class="stat-card">
+                <h3>{{ energy }}</h3>
+                <p>⚡ Energy</p>
+            </div>
+            <div class="stat-card">
+                <h3>{{ metals }}</h3>
+                <p>🔩 Metals</p>
+            </div>
+            <div class="stat-card">
+                <h3>{{ agriculture }}</h3>
+                <p>🌾 Agriculture</p>
+            </div>
+            <div class="stat-card">
+                <h3>{{ commodity_data|length }}</h3>
+                <p>Total Commodities</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="info-box">
+        <p><strong>📊 Data Sources:</strong> Yahoo Finance (Futures) & FRED (Spot Prices)</p>
+        <p><strong>🔄 Update Frequency:</strong> Daily</p>
+        <p><strong>ℹ️ Categories:</strong> Energy (Oil, Gas), Metals (Gold, Silver, Copper), Agriculture (Corn, Wheat, etc.)</p>
+    </div>
+</div>
+{% endblock %}
