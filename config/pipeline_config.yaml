@@ -15,12 +15,33 @@ stocks:
 crypto:
   enabled: true
   symbols:
-    - BTC
-    - ETH
-    - ADA
+    # Top Tier - Market Leaders
+    - BTC      # Bitcoin
+    - ETH      # Ethereum
+    - BNB      # Binance Coin
+    - SOL      # Solana
+    - XRP      # Ripple
+    
+    # Major Altcoins
+    - ADA      # Cardano
+    - AVAX     # Avalanche
+    - DOT      # Polkadot
+    - MATIC    # Polygon
+    - LINK     # Chainlink
+    
+    # DeFi Leaders
+    - UNI      # Uniswap
+    
+    # Stablecoins (for market analysis)
+    - USDT     # Tether
+    - USDC     # USD Coin
+    
+    # Layer 2 Scaling
+    - ARB      # Arbitrum
+    - OP       # Optimism
   days: 30
   source: "coingecko"
-  rate_limit_delay: 2.0  # seconds between API calls
+  rate_limit_delay: 4.0  # seconds between API calls (increased to avoid rate limits)
 
 bonds:
   enabled: true

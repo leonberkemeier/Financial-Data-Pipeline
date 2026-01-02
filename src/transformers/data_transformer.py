@@ -171,6 +171,14 @@ class DataTransformer:
         transformed['date_id'] = transformed['date_id'].astype(int)
         transformed['source_id'] = int(source_id) if 'source_id' in transformed.columns else source_id
         
+        # Remove duplicates based on unique constraint (company_id, date_id, source_id)
+        initial_count = len(transformed)
+        transformed = transformed.drop_duplicates(subset=['company_id', 'date_id', 'source_id'], keep='first')
+        duplicates_removed = initial_count - len(transformed)
+        
+        if duplicates_removed > 0:
+            logger.warning(f"Removed {duplicates_removed} duplicate stock records with same (company_id, date_id, source_id)")
+        
         logger.info(f"Transformed {len(transformed)} stock price records")
         return transformed
 
@@ -291,6 +299,15 @@ class DataTransformer:
         transformed['crypto_id'] = transformed['crypto_id'].astype(int)
         transformed['date_id'] = transformed['date_id'].astype(int)
         transformed['source_id'] = int(source_id)
+        
+        # Remove duplicates based on unique constraint (crypto_id, date_id, source_id)
+        # Keep the first occurrence if there are duplicates
+        initial_count = len(transformed)
+        transformed = transformed.drop_duplicates(subset=['crypto_id', 'date_id', 'source_id'], keep='first')
+        duplicates_removed = initial_count - len(transformed)
+        
+        if duplicates_removed > 0:
+            logger.warning(f"Removed {duplicates_removed} duplicate records with same (crypto_id, date_id, source_id)")
         
         logger.info(f"Transformed {len(transformed)} crypto price records")
         return transformed
@@ -436,6 +453,14 @@ class DataTransformer:
         transformed['date_id'] = transformed['date_id'].astype(int)
         transformed['source_id'] = int(source_id)
         
+        # Remove duplicates based on unique constraint (bond_id, date_id, source_id)
+        initial_count = len(transformed)
+        transformed = transformed.drop_duplicates(subset=['bond_id', 'date_id', 'source_id'], keep='first')
+        duplicates_removed = initial_count - len(transformed)
+        
+        if duplicates_removed > 0:
+            logger.warning(f"Removed {duplicates_removed} duplicate bond records with same (bond_id, date_id, source_id)")
+        
         logger.info(f"Transformed {len(transformed)} bond price records")
         return transformed
 
@@ -531,6 +556,14 @@ class DataTransformer:
         transformed['indicator_id'] = transformed['indicator_id'].astype(int)
         transformed['date_id'] = transformed['date_id'].astype(int)
         transformed['source_id'] = int(source_id)
+        
+        # Remove duplicates based on unique constraint (indicator_id, date_id, source_id)
+        initial_count = len(transformed)
+        transformed = transformed.drop_duplicates(subset=['indicator_id', 'date_id', 'source_id'], keep='first')
+        duplicates_removed = initial_count - len(transformed)
+        
+        if duplicates_removed > 0:
+            logger.warning(f"Removed {duplicates_removed} duplicate economic records with same (indicator_id, date_id, source_id)")
         
         logger.info(f"Transformed {len(transformed)} economic data records")
         return transformed
@@ -659,6 +692,14 @@ class DataTransformer:
         transformed['commodity_id'] = transformed['commodity_id'].astype(int)
         transformed['date_id'] = transformed['date_id'].astype(int)
         transformed['source_id'] = int(source_id)
+        
+        # Remove duplicates based on unique constraint (commodity_id, date_id, source_id)
+        initial_count = len(transformed)
+        transformed = transformed.drop_duplicates(subset=['commodity_id', 'date_id', 'source_id'], keep='first')
+        duplicates_removed = initial_count - len(transformed)
+        
+        if duplicates_removed > 0:
+            logger.warning(f"Removed {duplicates_removed} duplicate commodity records with same (commodity_id, date_id, source_id)")
         
         logger.info(f"Transformed {len(transformed)} commodity price records")
         return transformed
