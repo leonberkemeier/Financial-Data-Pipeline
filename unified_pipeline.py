@@ -90,8 +90,9 @@ class UnifiedPipeline:
             crypto_config = self.config['crypto']
             symbols = crypto_config.get('symbols', ['BTC', 'ETH'])
             days = crypto_config.get('days', 30)
+            rate_limit_delay = crypto_config.get('rate_limit_delay', 2.0)
             
-            run_crypto_pipeline(symbols=symbols, days=days)
+            run_crypto_pipeline(symbols=symbols, days=days, rate_limit_delay=rate_limit_delay)
             
             return {'status': 'success', 'symbols': symbols, 'count': len(symbols)}
         except Exception as e:

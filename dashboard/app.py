@@ -1108,5 +1108,320 @@ def add_ticker_api():
         }), 500
 
 
+@app.route('/analytics')
+def analytics():
+    """Advanced analytics dashboard page."""
+    conn = get_db_connection()
+    
+    # Get available sectors
+    sectors = pd.read_sql(text("""
+        SELECT DISTINCT sector
+        FROM dim_company
+        WHERE sector IS NOT NULL AND sector != ''
+        ORDER BY sector
+    """), conn)
+    
+    # Get available indexes
+    indexes = pd.read_sql(text("""
+        SELECT DISTINCT ticker, company_name
+        FROM dim_company
+        WHERE ticker LIKE '^%'
+        ORDER BY ticker
+    """), conn)
+    
+    conn.close()
+    
+    return render_template('analytics.html',
+                         sectors=sectors['sector'].tolist() if not sectors.empty else [],
+                         indexes=indexes.to_dict('records') if not indexes.empty else [])
+
+
+@app.route('/api/analytics/sector-performance')
+def api_sector_performance():
+    """Get sector performance analysis."""
+    conn = get_db_connection()
+    days = request.args.get('days', 30, type=int)
+    normalize = request.args.get('normalize', 'true').lower() == 'true'
+    
+    # Get sector performance over time
+    sector_data = pd.read_sql(text(f"""
+        SELECT 
+            c.sector,
+            d.date,
+            AVG(f.close_price) as avg_price,
+            AVG(f.price_change_percent) as avg_change,
+            SUM(f.volume) as total_volume
+        FROM fact_stock_price f
+        JOIN dim_company c ON f.company_id = c.company_id
+        JOIN dim_date d ON f.date_id = d.date_id
+        WHERE c.sector IS NOT NULL 
+        AND c.sector != ''
+        AND c.ticker NOT LIKE '^%'
+        AND d.date >= date('now', '-{days} days')
+        GROUP BY c.sector, d.date
+        ORDER BY c.sector, d.date
+    """), conn)
+    
+    conn.close()
+    
+    if sector_data.empty:
+        return jsonify({'error': 'No sector data available'}), 404
+    
+    if normalize:
+        # Normalize to percentage change from first day
+        normalized_data = []
+        for sector in sector_data['sector'].unique():
+            sector_rows = sector_data[sector_data['sector'] == sector].copy()
+            if not sector_rows.empty:
+                first_price = sector_rows.iloc[0]['avg_price']
+                sector_rows['value'] = ((sector_rows['avg_price'] / first_price) - 1) * 100
+                normalized_data.append(sector_rows)
+        
+        plot_data = pd.concat(normalized_data) if normalized_data else pd.DataFrame()
+        y_col = 'value'
+        y_label = 'Percentage Change (%)'
+        title = f'Sector Performance (Normalized) - Last {days} Days'
+    else:
+        # Use absolute average prices
+        plot_data = sector_data.copy()
+        plot_data['value'] = plot_data['avg_price']
+        y_col = 'value'
+        y_label = 'Average Price ($)'
+        title = f'Sector Performance (Absolute) - Last {days} Days'
+    
+    # Create performance chart
+    fig = px.line(plot_data, x='date', y=y_col, color='sector',
+                  title=title,
+                  labels={y_col: y_label, 'date': 'Date', 'sector': 'Sector'})
+    
+    return jsonify({
+        'chart': fig.to_json(),
+        'data': sector_data.to_dict('records')
+    })
+
+
+@app.route('/api/analytics/correlation-matrix')
+def api_correlation_matrix():
+    """Get correlation matrix for selected assets."""
+    conn = get_db_connection()
+    tickers = request.args.getlist('tickers')
+    
+    if not tickers:
+        # Default to major indexes
+        tickers = ['^GSPC', '^DJI', '^GDAXI']
+    
+    # Get price data for correlation
+    price_data = pd.read_sql(text("""
+        SELECT 
+            c.ticker,
+            d.date,
+            f.close_price
+        FROM fact_stock_price f
+        JOIN dim_company c ON f.company_id = c.company_id
+        JOIN dim_date d ON f.date_id = d.date_id
+        WHERE c.ticker IN :tickers
+        ORDER BY d.date
+    """), conn, params={'tickers': tuple(tickers)})
+    
+    conn.close()
+    
+    if price_data.empty:
+        return jsonify({'error': 'No data available for selected tickers'}), 404
+    
+    # Pivot data for correlation
+    pivot_data = price_data.pivot(index='date', columns='ticker', values='close_price')
+    
+    # Calculate returns
+    returns = pivot_data.pct_change().dropna()
+    
+    # Calculate correlation matrix
+    corr_matrix = returns.corr()
+    
+    # Create heatmap
+    fig = px.imshow(corr_matrix, 
+                    labels=dict(color="Correlation"),
+                    x=corr_matrix.columns,
+                    y=corr_matrix.columns,
+                    color_continuous_scale='RdBu_r',
+                    zmin=-1, zmax=1,
+                    title='Asset Correlation Matrix')
+    
+    return jsonify({
+        'chart': fig.to_json(),
+        'matrix': corr_matrix.to_dict()
+    })
+
+
+@app.route('/api/analytics/market-comparison')
+def api_market_comparison():
+    """Compare US vs European markets."""
+    conn = get_db_connection()
+    days = request.args.get('days', 30, type=int)
+    normalize = request.args.get('normalize', 'true').lower() == 'true'
+    
+    # Get US and European index performance
+    index_data = pd.read_sql(text(f"""
+        SELECT 
+            c.ticker,
+            c.company_name,
+            d.date,
+            f.close_price,
+            f.price_change_percent
+        FROM fact_stock_price f
+        JOIN dim_company c ON f.company_id = c.company_id
+        JOIN dim_date d ON f.date_id = d.date_id
+        WHERE c.ticker IN ('^GSPC', '^DJI', '^GDAXI', '^STOXX50E', '^FTSE')
+        AND d.date >= date('now', '-{days} days')
+        ORDER BY c.ticker, d.date
+    """), conn)
+    
+    conn.close()
+    
+    if index_data.empty:
+        return jsonify({'error': 'No index data available'}), 404
+    
+    if normalize:
+        # Normalize prices to 100 for comparison
+        normalized_data = index_data.copy()
+        for ticker in normalized_data['ticker'].unique():
+            ticker_data = normalized_data[normalized_data['ticker'] == ticker]
+            if not ticker_data.empty:
+                first_price = ticker_data.iloc[0]['close_price']
+                normalized_data.loc[normalized_data['ticker'] == ticker, 'value'] = \
+                    (ticker_data['close_price'] / first_price) * 100
+        
+        plot_data = normalized_data
+        y_col = 'value'
+        y_label = 'Normalized Price (Base=100)'
+        title = f'Market Index Comparison (Normalized) - Last {days} Days'
+    else:
+        # Use absolute prices
+        plot_data = index_data.copy()
+        plot_data['value'] = plot_data['close_price']
+        y_col = 'value'
+        y_label = 'Index Price'
+        title = f'Market Index Comparison (Absolute) - Last {days} Days'
+    
+    # Create comparison chart
+    fig = px.line(plot_data, x='date', y=y_col, color='company_name',
+                  title=title,
+                  labels={y_col: y_label, 
+                          'date': 'Date', 
+                          'company_name': 'Index'})
+    
+    return jsonify({
+        'chart': fig.to_json(),
+        'data': index_data.to_dict('records')
+    })
+
+
+@app.route('/api/analytics/sector-stocks/<sector>')
+def api_sector_stocks(sector):
+    """Get all stocks in a specific sector."""
+    conn = get_db_connection()
+    days = request.args.get('days', 30, type=int)
+    normalize = request.args.get('normalize', 'true').lower() == 'true'
+    
+    # Get stocks in sector with recent performance
+    sector_stocks = pd.read_sql(text(f"""
+        SELECT 
+            c.ticker,
+            c.company_name,
+            c.sector,
+            d.date,
+            f.close_price,
+            f.price_change_percent,
+            f.volume
+        FROM fact_stock_price f
+        JOIN dim_company c ON f.company_id = c.company_id
+        JOIN dim_date d ON f.date_id = d.date_id
+        WHERE c.sector = :sector
+        AND d.date >= date('now', '-{days} days')
+        ORDER BY c.ticker, d.date
+    """), conn, params={'sector': sector})
+    
+    conn.close()
+    
+    if sector_stocks.empty:
+        return jsonify({'error': f'No data available for sector: {sector}'}), 404
+    
+    if normalize:
+        # Calculate cumulative returns for each stock (normalized)
+        stocks_normalized = sector_stocks.copy()
+        for ticker in stocks_normalized['ticker'].unique():
+            ticker_data = stocks_normalized[stocks_normalized['ticker'] == ticker]
+            if not ticker_data.empty:
+                first_price = ticker_data.iloc[0]['close_price']
+                stocks_normalized.loc[stocks_normalized['ticker'] == ticker, 'value'] = \
+                    (ticker_data['close_price'] / first_price) * 100
+        
+        plot_data = stocks_normalized
+        y_col = 'value'
+        y_label = 'Normalized Price (Base=100)'
+        title = f'{sector} Sector - Stock Performance Comparison (Normalized)'
+    else:
+        # Use absolute prices
+        plot_data = sector_stocks.copy()
+        plot_data['value'] = plot_data['close_price']
+        y_col = 'value'
+        y_label = 'Stock Price ($)'
+        title = f'{sector} Sector - Stock Performance Comparison (Absolute)'
+    
+    # Create sector stocks comparison chart
+    fig = px.line(plot_data, x='date', y=y_col, color='ticker',
+                  title=title,
+                  labels={y_col: y_label, 
+                          'date': 'Date', 
+                          'ticker': 'Stock'})
+    
+    return jsonify({
+        'chart': fig.to_json(),
+        'data': sector_stocks.to_dict('records')
+    })
+
+
+@app.route('/api/analytics/crypto-correlation')
+def api_crypto_correlation():
+    """Get correlation between crypto assets."""
+    conn = get_db_connection()
+    
+    # Get crypto price data
+    crypto_data = pd.read_sql(text("""
+        SELECT 
+            ca.symbol,
+            d.date,
+            f.price
+        FROM fact_crypto_price f
+        JOIN dim_crypto_asset ca ON f.crypto_id = ca.crypto_id
+        JOIN dim_date d ON f.date_id = d.date_id
+        WHERE ca.symbol IN ('BTC', 'ETH', 'BNB', 'SOL', 'ADA')
+        ORDER BY d.date
+    """), conn)
+    
+    conn.close()
+    
+    if crypto_data.empty:
+        return jsonify({'error': 'No crypto data available'}), 404
+    
+    # Pivot and calculate correlation
+    pivot_data = crypto_data.pivot(index='date', columns='symbol', values='price')
+    returns = pivot_data.pct_change().dropna()
+    corr_matrix = returns.corr()
+    
+    # Create heatmap
+    fig = px.imshow(corr_matrix,
+                    labels=dict(color="Correlation"),
+                    x=corr_matrix.columns,
+                    y=corr_matrix.columns,
+                    color_continuous_scale='RdBu_r',
+                    zmin=-1, zmax=1,
+                    title='Cryptocurrency Correlation Matrix')
+    
+    return jsonify({
+        'chart': fig.to_json(),
+        'matrix': corr_matrix.to_dict()
+    })
+
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

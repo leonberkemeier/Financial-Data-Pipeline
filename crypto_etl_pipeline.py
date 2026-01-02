@@ -16,7 +16,8 @@ load_dotenv()
 def run_crypto_pipeline(
     symbols: list = None,
     days: int = 30,
-    source_name: str = "coingecko"
+    source_name: str = "coingecko",
+    rate_limit_delay: float = 2.0
 ):
     """
     Run the complete crypto ETL pipeline.
@@ -25,6 +26,7 @@ def run_crypto_pipeline(
         symbols: List of crypto symbols (default: BTC, ETH, ADA)
         days: Number of days of historical data
         source_name: Name of the data source
+        rate_limit_delay: Delay in seconds between API requests to avoid rate limiting
     """
     if symbols is None:
         symbols = ['BTC', 'ETH', 'ADA']
@@ -35,6 +37,8 @@ def run_crypto_pipeline(
     logger.info(f"Symbols: {symbols}")
     logger.info(f"Days: {days}")
     logger.info(f"Source: {source_name}")
+    logger.info(f"Rate limit delay: {rate_limit_delay} seconds")
+    logger.info("=" * 80)
     
     # Initialize database
     logger.info("\nInitializing database...")
@@ -50,7 +54,7 @@ def run_crypto_pipeline(
         logger.info("EXTRACT PHASE")
         logger.info("=" * 80)
         
-        extractor = CoinGeckoExtractor(rate_limit_delay=2.0)
+        extractor = CoinGeckoExtractor(rate_limit_delay=rate_limit_delay)
         
         # Extract price data
         logger.info(f"Extracting crypto prices for {len(symbols)} symbols...")

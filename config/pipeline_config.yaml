@@ -4,11 +4,79 @@
 stocks:
   enabled: true
   tickers:
-    - AAPL
-    - MSFT
-    - GOOGL
-    - AMZN
-    - TSLA
+    # Major Indexes
+    - ^GSPC    # S&P 500 Index
+    - ^DJI     # Dow Jones Industrial Average
+    - ^IXIC    # NASDAQ Composite
+    - ^GDAXI   # DAX (German Stock Index)
+    - ^STOXX50E # Euro Stoxx 50 (European Index)
+    - ^FTSE    # FTSE 100 (UK Index)
+    
+    # Technology Sector
+    - AAPL     # Apple (US)
+    - MSFT     # Microsoft (US)
+    - GOOGL    # Alphabet/Google (US)
+    - META     # Meta/Facebook (US)
+    - NVDA     # NVIDIA (US)
+    - TSLA     # Tesla (US)
+    - AMZN     # Amazon (US)
+    - ASML.AS  # ASML (Netherlands - Semiconductor)
+    - SAP.DE   # SAP (Germany - Software)
+    
+    # Finance Sector
+    - JPM      # JPMorgan Chase (US)
+    - BAC      # Bank of America (US)
+    - WFC      # Wells Fargo (US)
+    - GS       # Goldman Sachs (US)
+    - V        # Visa (US)
+    - MA       # Mastercard (US)
+    - DBK.DE   # Deutsche Bank (Germany) - Fixed ticker
+    - HSBA.L   # HSBC (UK)
+    - BNP.PA   # BNP Paribas (France)
+    - SAN.MC   # Banco Santander (Spain)
+    - CS.PA    # AXA (France - Insurance)
+    
+    # Chemical/Materials Sector
+    - BAS.DE   # BASF (Germany)
+    - DOW      # Dow Inc. (US)
+    - LYB      # LyondellBasell (US)
+    - DD       # DuPont (US)
+    - LIN.DE   # Linde (Germany - Industrial Gases)
+    - AIR.PA   # Air Liquide (France)
+    - AKE.DE   # Evonik Industries (Germany)
+    
+    # Automotive
+    - VOW3.DE  # Volkswagen (Germany)
+    - BMW.DE   # BMW (Germany)
+    - MBG.DE   # Mercedes-Benz (Germany)
+    - F        # Ford (US)
+    - GM       # General Motors (US)
+    
+    # Healthcare/Pharma
+    - JNJ      # Johnson & Johnson (US)
+    - PFE      # Pfizer (US)
+    - NVS      # Novartis (Switzerland)
+    - ROG.SW   # Roche (Switzerland)
+    - SAN.PA   # Sanofi (France)
+    - BAYN.DE  # Bayer (Germany)
+    
+    # Energy
+    - XOM      # Exxon Mobil (US)
+    - CVX      # Chevron (US)
+    - TTE.PA   # TotalEnergies (France)
+    - BP.L     # BP (UK)
+    - SHEL.L   # Shell (UK)
+    
+    # Consumer Goods & Retail
+    - PG       # Procter & Gamble (US)
+    - KO       # Coca-Cola (US)
+    - WMT      # Walmart (US)
+    - MC.PA    # LVMH (France - Luxury)
+    - OR.PA    # L'Oréal (France - Cosmetics)
+    - NESN.SW  # Nestlé (Switzerland)
+    - ADS.DE   # Adidas (Germany)
+    - UNA.AS   # Unilever (Netherlands)
+    
   period: "30d"  # 1d, 5d, 1mo, 3mo, 1y, max
   source: "yahoo"  # yahoo or alpha_vantage
 
@@ -41,7 +109,7 @@ crypto:
     - OP       # Optimism
   days: 30
   source: "coingecko"
-  rate_limit_delay: 4.0  # seconds between API calls (increased to avoid rate limits)
+  rate_limit_delay: 20.0  # seconds between API calls (increased to avoid rate limits)
 
 bonds:
   enabled: true

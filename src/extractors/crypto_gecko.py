@@ -70,8 +70,13 @@ class CoinGeckoExtractor:
         # Map common symbols to CoinGecko IDs
         symbol_to_id = self._get_symbol_mapping(symbols)
         
-        for symbol, crypto_id in symbol_to_id.items():
+        for idx, (symbol, crypto_id) in enumerate(symbol_to_id.items()):
             try:
+                # Rate limiting: sleep BEFORE request (except for first one)
+                if idx > 0:
+                    logger.debug(f"Waiting {self.rate_limit_delay} seconds before next request...")
+                    time.sleep(self.rate_limit_delay)
+                
                 logger.debug(f"Fetching data for {symbol}")
                 
                 # Fetch market data
@@ -108,13 +113,12 @@ class CoinGeckoExtractor:
                 all_data.append(df)
                 logger.debug(f"Successfully fetched {len(df)} records for {symbol}")
                 
-                # Rate limiting: sleep between requests
-                time.sleep(self.rate_limit_delay)
-                
             except Exception as e:
                 logger.error(f"Error fetching data for {symbol}: {str(e)}")
-                # Sleep even on error to avoid further rate limiting
-                time.sleep(self.rate_limit_delay)
+                # Sleep longer on error to avoid further rate limiting
+                if "429" in str(e) or "Too Many Requests" in str(e):
+                    logger.warning(f"Rate limit hit, waiting {self.rate_limit_delay * 2} seconds...")
+                    time.sleep(self.rate_limit_delay * 2)
                 continue
         
         if not all_data:
@@ -145,7 +149,7 @@ class CoinGeckoExtractor:
         symbol_to_id = self._get_symbol_mapping(symbols)
         cache_updated = False
         
-        for symbol, crypto_id in symbol_to_id.items():
+        for idx, (symbol, crypto_id) in enumerate(symbol_to_id.items()):
             # Check cache first
             if symbol in self.metadata_cache:
                 logger.debug(f"Using cached metadata for {symbol}")
@@ -154,6 +158,11 @@ class CoinGeckoExtractor:
             
             # Not in cache, fetch from API
             try:
+                # Rate limiting: sleep BEFORE request (except for first uncached one)
+                if idx > 0 and len([s for s in symbol_to_id.keys() if s in self.metadata_cache]) < idx:
+                    logger.debug(f"Waiting {self.rate_limit_delay} seconds before next API request...")
+                    time.sleep(self.rate_limit_delay)
+                
                 logger.debug(f"Fetching info for {symbol} from API")
                 
                 url = f"{self.base_url}/coins/{crypto_id}"
@@ -192,9 +201,6 @@ class CoinGeckoExtractor:
                 
                 logger.debug(f"Extracted and cached info for {symbol}")
                 
-                # Rate limiting: sleep between requests
-                time.sleep(self.rate_limit_delay)
-                
             except Exception as e:
                 logger.error(f"Error extracting info for {symbol}: {str(e)}")
                 # Create minimal metadata entry if API fails
@@ -206,8 +212,10 @@ class CoinGeckoExtractor:
                     'cached_at': datetime.now().isoformat()
                 }
                 crypto_data.append(minimal_metadata)
-                # Sleep even on error to avoid further rate limiting
-                time.sleep(self.rate_limit_delay)
+                # Sleep longer on rate limit errors
+                if "429" in str(e) or "Too Many Requests" in str(e):
+                    logger.warning(f"Rate limit hit, waiting {self.rate_limit_delay * 2} seconds...")
+                    time.sleep(self.rate_limit_delay * 2)
                 continue
         
         # Save cache if updated
@@ -237,8 +245,13 @@ class CoinGeckoExtractor:
         change_data = []
         symbol_to_id = self._get_symbol_mapping(symbols)
         
-        for symbol, crypto_id in symbol_to_id.items():
+        for idx, (symbol, crypto_id) in enumerate(symbol_to_id.items()):
             try:
+                # Rate limiting: sleep BEFORE request (except for first one)
+                if idx > 0:
+                    logger.debug(f"Waiting {self.rate_limit_delay} seconds before next request...")
+                    time.sleep(self.rate_limit_delay)
+                
                 url = f"{self.base_url}/coins/{crypto_id}"
                 params = {
                     "localization": "false",
@@ -261,13 +274,12 @@ class CoinGeckoExtractor:
                     'price_change_1y': market_data.get('price_change_percentage_1y')
                 })
                 
-                # Rate limiting: sleep between requests
-                time.sleep(self.rate_limit_delay)
-                
             except Exception as e:
                 logger.error(f"Error extracting price change for {symbol}: {str(e)}")
-                # Sleep even on error to avoid further rate limiting
-                time.sleep(self.rate_limit_delay)
+                # Sleep longer on rate limit errors
+                if "429" in str(e) or "Too Many Requests" in str(e):
+                    logger.warning(f"Rate limit hit, waiting {self.rate_limit_delay * 2} seconds...")
+                    time.sleep(self.rate_limit_delay * 2)
                 continue
         
         if not change_data:
@@ -308,7 +320,10 @@ class CoinGeckoExtractor:
             'ATOM': 'cosmos',
             'NEAR': 'near',
             'AAVE': 'aave',
-            'CURVE': 'curve-dao-token'
+            'CURVE': 'curve-dao-token',
+            'UNI': 'uniswap',
+            'ARB': 'arbitrum',
+            'OP': 'optimism'
         }
         
         mapping = {}
