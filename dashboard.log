@@ -10,4 +10,36 @@ Connecting to database: sqlite:////home/archy/Desktop/Server/FinancialData/finan
  * Restarting with stat
  * Debugger is active!
  * Debugger PIN: 251-481-202
-127.0.0.1 - - [28/Dec/2025 00:05:23] "GET /chat HTTP/1.1" 200 -
+127.0.0.1 - - [28/Dec/2025 00:16:06] "GET /chat HTTP/1.1" 200 -
+127.0.0.1 - - [28/Dec/2025 00:16:44] "GET /chat HTTP/1.1" 200 -
+127.0.0.1 - - [28/Dec/2025 00:16:44] "[36mGET /static/css/style.css HTTP/1.1[0m" 304 -
+2025-12-28 00:16:48.469 | INFO     | rag_demo:__init__:37 - Initializing RAG system...
+2025-12-28 00:16:48.470 | INFO     | rag_demo:__init__:45 - Connected to Ollama at http://100.102.213.61:11434
+2025-12-28 00:16:48.490 | INFO     | rag_demo:__init__:51 - ✓ Ollama server is reachable
+2025-12-28 00:16:48.587 | INFO     | src.analyzers.filing_analyzer:__init__:25 - Initialized FilingAnalyzer
+2025-12-28 00:16:48.587 | INFO     | rag_demo:__init__:69 - RAG system initialized
+127.0.0.1 - - [28/Dec/2025 00:17:12] "POST /api/chat/query HTTP/1.1" 200 -
+2025-12-28 00:17:20.514 | INFO     | nl_to_sql:generate_sql:93 - Converting to SQL: Show me the top 5 stocks by price
+2025-12-28 00:17:24.400 | INFO     | nl_to_sql:generate_sql:149 - Generated SQL: SELECT s.company_name AS Company, f.close_price AS Price
+FROM fact_stock_price fs JOIN dim_date d ON...
+2025-12-28 00:17:24.401 | INFO     | nl_to_sql:execute_sql:188 - Executing SQL: SELECT s.company_name AS Company, f.close_price AS Price
+FROM fact_stock_price fs JOIN dim_date d ON fs.date_id = d.date_id JOIN dim_company s ON fs.company_id = s.company_id
+ORDER BY f.close_price DESC
+LIMIT 5;
+2025-12-28 00:17:24.403 | ERROR    | nl_to_sql:execute_sql:204 - SQL execution error: (sqlite3.OperationalError) no such column: f.close_price
+[SQL: SELECT s.company_name AS Company, f.close_price AS Price
+FROM fact_stock_price fs JOIN dim_date d ON fs.date_id = d.date_id JOIN dim_company s ON fs.company_id = s.company_id
+ORDER BY f.close_price DESC
+LIMIT 5;]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+127.0.0.1 - - [28/Dec/2025 00:17:24] "POST /api/nl-to-sql HTTP/1.1" 200 -
+ * Detected change in '/home/archy/Desktop/Server/FinancialData/financial_data_aggregator/nl_to_sql.py', reloading
+Connecting to database: sqlite:////home/archy/Desktop/Server/FinancialData/financial_data_aggregator/financial_data.db
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 251-481-202
+ * Detected change in '/home/archy/Desktop/Server/FinancialData/financial_data_aggregator/nl_to_sql.py', reloading
+Connecting to database: sqlite:////home/archy/Desktop/Server/FinancialData/financial_data_aggregator/financial_data.db
+ * Restarting with stat
+ * Debugger is active!
+ * Debugger PIN: 251-481-202

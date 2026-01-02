@@ -65,18 +65,24 @@
         </div>
         
         <div class="chat-input-container">
+            <div class="mode-selector">
+                <label>
+                    <input type="radio" name="queryMode" value="rag" checked> 💬 RAG Chat (SEC Filings + Market Data)
+                </label>
+                <label>
+                    <input type="radio" name="queryMode" value="sql"> 📊 SQL Query (Database Search)
+                </label>
+            </div>
             <form id="chatForm">
                 <input 
                     type="text" 
                     id="questionInput" 
-                    placeholder="Ask a question about SEC filings..."
+                    placeholder="Ask a question..."
                     autocomplete="off"
-                    {% if not rag_available or not companies %}disabled{% endif %}
                 >
                 <button 
                     type="submit" 
                     id="sendButton"
-                    {% if not rag_available or not companies %}disabled{% endif %}
                 >
                     Send
                 </button>
@@ -251,6 +257,27 @@
     border-top: 1px solid var(--border-color);
 }
 
+.mode-selector {
+    display: flex;
+    gap: 1.5rem;
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.mode-selector label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    font-size: 0.95rem;
+    color: var(--text-color);
+}
+
+.mode-selector input[type="radio"] {
+    cursor: pointer;
+}
+
 #chatForm {
     display: flex;
     gap: 1rem;
@@ -379,6 +406,9 @@ document.getElementById('chatForm').addEventListener('submit', async function(e)
     
     if (!question) return;
     
+    // Get selected mode
+    const mode = document.querySelector('input[name="queryMode"]:checked').value;
+    
     // Add user message
     addMessage(question, 'user');
     input.value = '';
@@ -386,13 +416,15 @@ document.getElementById('chatForm').addEventListener('submit', async function(e)
     // Show loading
     const loadingDiv = document.createElement('div');
     loadingDiv.className = 'loading-indicator active';
-    loadingDiv.innerHTML = '<div class="spinner"></div><span>Thinking...</span>';
+    loadingDiv.innerHTML = '<div class="spinner"></div><span>' + (mode === 'sql' ? 'Generating SQL...' : 'Thinking...') + '</span>';
     loadingDiv.id = 'loading';
     document.getElementById('chatMessages').appendChild(loadingDiv);
     scrollToBottom();
     
     try {
-        const response = await fetch('/api/chat/query', {
+        const endpoint = mode === 'sql' ? '/api/nl-to-sql' : '/api/chat/query';
+        
+        const response = await fetch(endpoint, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -406,7 +438,11 @@ document.getElementById('chatForm').addEventListener('submit', async function(e)
         document.getElementById('loading').remove();
         
         if (data.success) {
-            addMessage(data.answer, 'bot', data.sources, data.price_data);
+            if (mode === 'sql') {
+                addSQLMessage(data);
+            } else {
+                addMessage(data.answer, 'bot', data.sources, data.price_data);
+            }
         } else {
             addMessage('Error: ' + data.error, 'bot');
         }
@@ -482,6 +518,52 @@ function renderPriceChart(containerId, priceData) {
     };
     
     Plotly.newPlot(containerId, traces, layout);
+}
+
+function addSQLMessage(data) {
+    const messagesDiv = document.getElementById('chatMessages');
+    const messageDiv = document.createElement('div');
+    messageDiv.className = 'message bot-message';
+    
+    let tableHTML = '';
+    if (data.data && data.data.length > 0) {
+        const columns = data.columns || Object.keys(data.data[0]);
+        tableHTML = `
+            <div style="overflow-x: auto; margin-top: 1rem;">
+                <table class="data-table" style="width: 100%;">
+                    <thead>
+                        <tr>
+                            ${columns.map(col => `<th>${col}</th>`).join('')}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${data.data.map(row => `
+                            <tr>
+                                ${columns.map(col => `<td>${row[col] !== null && row[col] !== undefined ? row[col] : 'N/A'}</td>`).join('')}
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+    
+    messageDiv.innerHTML = `
+        <div class="message-header">
+            <span class="bot-icon">📊</span>
+            <span class="bot-name">SQL Query Result</span>
+        </div>
+        <div class="message-content">
+            <strong>Generated SQL:</strong>
+            <pre style="background: var(--bg-color); padding: 1rem; border-radius: 4px; overflow-x: auto;">${data.sql}</pre>
+            ${data.explanation ? `<p><em>${data.explanation}</em></p>` : ''}
+            <p><strong>Results:</strong> ${data.row_count} row(s)</p>
+            ${tableHTML}
+        </div>
+    `;
+    
+    messagesDiv.appendChild(messageDiv);
+    scrollToBottom();
 }
 
 function scrollToBottom() {

@@ -1017,6 +1017,30 @@ Provide an integrated analysis combining all available information."""
         }), 500
 
 
+@app.route('/api/nl-to-sql', methods=['POST'])
+def api_nl_to_sql():
+    """API endpoint for natural language to SQL queries."""
+    try:
+        from nl_to_sql import NLToSQLEngine
+        
+        data = request.get_json()
+        question = data.get('question', '').strip()
+        
+        if not question:
+            return jsonify({'success': False, 'error': 'No question provided'}), 400
+        
+        engine = NLToSQLEngine()
+        result = engine.query(question)
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 @app.route('/add-ticker')
 def add_ticker_page():
     """Page to add new tickers."""
