@@ -14,6 +14,7 @@ class DimCompany(Base):
     sector = Column(String(100))
     industry = Column(String(100))
     country = Column(String(50))
+    exchange_id = Column(Integer, ForeignKey("dim_exchange.exchange_id"), nullable=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
