@@ -45,13 +45,15 @@ class YahooFinanceExtractor:
                         ticker,
                         start=start_date,
                         end=end_date,
-                        progress=False
+                        progress=False,
+                        auto_adjust=True
                     )
                 else:
                     data = yf.download(
                         ticker,
                         period=period,
-                        progress=False
+                        progress=False,
+                        auto_adjust=True
                     )
                 
                 if data.empty:

@@ -43,7 +43,7 @@ stocks:
     - DD       # DuPont (US)
     - LIN.DE   # Linde (Germany - Industrial Gases)
     - AIR.PA   # Air Liquide (France)
-    - AKE.DE   # Evonik Industries (Germany)
+    - EVK.DE   # Evonik Industries (Germany)
     
     # Automotive
     - VOW3.DE  # Volkswagen (Germany)
