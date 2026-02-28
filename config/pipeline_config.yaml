@@ -19,6 +19,10 @@ stocks:
     - META     # Meta/Facebook (US)
     - NVDA     # NVIDIA (US)
     - TSLA     # Tesla (US)
+    - AMD      # Advanced Micro Devices (US)
+    - INTC     # Intel (US)
+    - CRM      # Salesforce (US)
+    - ADBE     # Adobe (US)
     - AMZN     # Amazon (US)
     - ASML.AS  # ASML (Netherlands - Semiconductor)
     - SAP.DE   # SAP (Germany - Software)
@@ -28,6 +32,12 @@ stocks:
     - BAC      # Bank of America (US)
     - WFC      # Wells Fargo (US)
     - GS       # Goldman Sachs (US)
+    - MS       # Morgan Stanley (US)
+    - C        # Citigroup (US)
+    - BLK      # BlackRock (US)
+    - AXP      # American Express (US)
+    - USB      # U.S. Bancorp (US)
+    - PNC      # PNC Financial Services (US)
     - V        # Visa (US)
     - MA       # Mastercard (US)
     - DBK.DE   # Deutsche Bank (Germany) - Fixed ticker
@@ -76,6 +86,25 @@ stocks:
     - NESN.SW  # Nestlé (Switzerland)
     - ADS.DE   # Adidas (Germany)
     - UNA.AS   # Unilever (Netherlands)
+    
+    # Cyclicals / Industrials
+    - CAT      # Caterpillar (US)
+    - DE       # Deere & Company (US)
+    - BA       # Boeing (US)
+    - HON      # Honeywell (US)
+    - MMM      # 3M Company (US)
+    - GE       # General Electric (US)
+    - UPS      # United Parcel Service (US)
+    - FDX      # FedEx (US)
+    - DAL      # Delta Air Lines (US)
+    - UAL      # United Airlines (US)
+    
+    # Cryptocurrencies (Yahoo Finance format)
+    - BTC-USD  # Bitcoin
+    - ETH-USD  # Ethereum
+    - SOL-USD  # Solana
+    - BNB-USD  # Binance Coin
+    - ADA-USD  # Cardano
     
   period: "30d"  # 1d, 5d, 1mo, 3mo, 1y, max
   source: "yahoo"  # yahoo or alpha_vantage
@@ -139,10 +168,15 @@ commodities:
     # Energy
     - CL=F    # WTI Crude Oil
     - NG=F    # Natural Gas
+    - USO      # United States Oil Fund ETF
     # Metals
-    - GC=F    # Gold
-    - SI=F    # Silver
+    - GC=F    # Gold Futures
+    - SI=F    # Silver Futures
     - HG=F    # Copper
+    - GLD     # SPDR Gold Shares ETF
+    - SLV     # iShares Silver Trust ETF
+    # Broad Commodities
+    - DBC     # Invesco DB Commodity Index Tracking Fund
   days: 30
   source: "yahoo"  # yahoo or fred or both
   # For FRED, use series IDs like: DCOILWTICO, GOLDAMGBD228NLBM

@@ -141,5 +141,31 @@
     "all_time_high": 1.17,
     "all_time_low": 0.877647,
     "cached_at": "2026-01-02T21:35:23.774318"
+  },
+  "AVAX": {
+    "symbol": "AVAX",
+    "name": "Avalanche",
+    "chain": "Avalanche",
+    "description": "Avalanche is a high throughput smart contract blockchain\u00a0platform. Validators secure the network through a proof-of-stake consensus protocol. It is said to be fast, low cost, and environmental friendly.",
+    "circulating_supply": 431771961.1772119,
+    "total_supply": 463441061.1772119,
+    "max_supply": 720000000.0,
+    "market_cap_usd": 4025665023,
+    "all_time_high": 144.96,
+    "all_time_low": 2.8,
+    "cached_at": "2026-02-26T16:14:53.890662"
+  },
+  "DOT": {
+    "symbol": "DOT",
+    "name": "Polkadot",
+    "chain": "Polkadot",
+    "description": "Polkadot is a platform that allows diverse blockchains to transfer messages, including value, in a trust-free fashion; sharing their unique features while pooling their security. In brief, Polkadot is a scalable heterogeneous multi-chain technology.\r\n\r\nPolkadot is heterogeneous because it is entirely flexible and makes no assumption about the nature or structure of the chains in the network. Even non-blockchain systems or data structures can become parachains if they fulfill a set of criteria.\r\n\r\nPolkadot may be considered equivalent to a set of independent chains (e.g. a set containing Ethereum, Ethereum Classic, Namecoin and Bitcoin) except with important additions: pooled security and trust-free interchain transactability.\r\n\r\nMany of the native parachains of Polkadot will be written using a Polkadot Runtime Environment SDK (e.g. Parity Technologies' Substrate).",
+    "circulating_supply": 1669264640.171391,
+    "total_supply": 1669264640.171391,
+    "max_supply": 2100000000.0,
+    "market_cap_usd": 2644778125,
+    "all_time_high": 54.98,
+    "all_time_low": 1.15,
+    "cached_at": "2026-02-26T16:14:54.383581"
   }
 }
