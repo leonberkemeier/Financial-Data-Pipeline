@@ -2,6 +2,7 @@
 import os
 import argparse
 import yaml
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List
@@ -13,6 +14,9 @@ from crypto_etl_pipeline import run_crypto_pipeline
 from bond_etl_pipeline import run_bond_pipeline
 from economic_etl_pipeline import run_economic_pipeline
 from commodity_etl_pipeline import run_commodity_pipeline
+
+# Import email notifier
+from src.utils.email_notifier import EmailNotifier
 
 # Load environment variables
 load_dotenv()
@@ -26,6 +30,36 @@ class UnifiedPipeline:
         self.config_path = config_path
         self.config = self.load_config()
         self.results = {}
+        self.start_time = None
+        
+        # Initialize email notifier
+        self.email_notifier = self._init_email_notifier()
+    
+    def _init_email_notifier(self) -> EmailNotifier:
+        """Initialize email notifier from environment variables."""
+        try:
+            sender_email = os.getenv('SENDER_EMAIL')
+            sender_password = os.getenv('SENDER_PASSWORD')
+            recipient_email = os.getenv('RECIPIENT_EMAIL')
+            smtp_server = os.getenv('SMTP_SERVER', 'smtp.gmail.com')
+            smtp_port = int(os.getenv('SMTP_PORT', '587'))
+            
+            if not all([sender_email, sender_password, recipient_email]):
+                logger.warning("Email credentials not configured. Notifications disabled.")
+                return None
+            
+            notifier = EmailNotifier(
+                sender_email=sender_email,
+                sender_password=sender_password,
+                recipient_email=recipient_email,
+                smtp_server=smtp_server,
+                smtp_port=smtp_port
+            )
+            logger.info("✉️  Email notifier initialized")
+            return notifier
+        except Exception as e:
+            logger.warning(f"Failed to initialize email notifier: {str(e)}")
+            return None
         
     def load_config(self) -> Dict:
         """Load configuration from YAML file."""
@@ -82,6 +116,7 @@ class UnifiedPipeline:
             logger.info("Crypto pipeline disabled in config")
             return {'status': 'skipped', 'reason': 'disabled in config'}
         
+        pipeline_start_time = time.time()
         try:
             logger.info("\n" + "🟡 " * 40)
             logger.info("RUNNING CRYPTO PIPELINE")
@@ -94,9 +129,34 @@ class UnifiedPipeline:
             
             run_crypto_pipeline(symbols=symbols, days=days, rate_limit_delay=rate_limit_delay)
             
-            return {'status': 'success', 'symbols': symbols, 'count': len(symbols)}
+            execution_time = time.time() - pipeline_start_time
+            
+            # Send success email
+            if self.email_notifier and os.getenv('SEND_SUCCESS_EMAILS', 'true').lower() == 'true':
+                self.email_notifier.send_success_notification(
+                    pipeline_name="Crypto",
+                    records_count=len(symbols) * days,  # Approximate
+                    execution_time=execution_time,
+                    details={
+                        'Cryptocurrencies': ', '.join(symbols),
+                        'Days of Data': days,
+                        'Rate Limit Delay': f"{rate_limit_delay}s"
+                    }
+                )
+            
+            return {'status': 'success', 'symbols': symbols, 'count': len(symbols), 'execution_time': execution_time}
         except Exception as e:
+            execution_time = time.time() - pipeline_start_time
             logger.error(f"Crypto pipeline failed: {str(e)}")
+            
+            # Send failure email
+            if self.email_notifier and os.getenv('SEND_FAILURE_EMAILS', 'true').lower() == 'true':
+                self.email_notifier.send_failure_notification(
+                    pipeline_name="Crypto",
+                    error_message=str(e),
+                    execution_time=execution_time
+                )
+            
             return {'status': 'failed', 'error': str(e)}
     
     def run_bonds(self):
@@ -105,6 +165,7 @@ class UnifiedPipeline:
             logger.info("Bonds pipeline disabled in config")
             return {'status': 'skipped', 'reason': 'disabled in config'}
         
+        pipeline_start_time = time.time()
         try:
             logger.info("\n" + "🟢 " * 40)
             logger.info("RUNNING BONDS PIPELINE")
@@ -117,9 +178,34 @@ class UnifiedPipeline:
             
             run_bond_pipeline(periods=periods, days=days, source=source)
             
-            return {'status': 'success', 'periods': periods, 'count': len(periods)}
+            execution_time = time.time() - pipeline_start_time
+            
+            # Send success email
+            if self.email_notifier and os.getenv('SEND_SUCCESS_EMAILS', 'true').lower() == 'true':
+                self.email_notifier.send_success_notification(
+                    pipeline_name="Bonds",
+                    records_count=len(periods) * days,
+                    execution_time=execution_time,
+                    details={
+                        'Bond Periods': ', '.join(periods),
+                        'Days of Data': days,
+                        'Source': source
+                    }
+                )
+            
+            return {'status': 'success', 'periods': periods, 'count': len(periods), 'execution_time': execution_time}
         except Exception as e:
+            execution_time = time.time() - pipeline_start_time
             logger.error(f"Bonds pipeline failed: {str(e)}")
+            
+            # Send failure email
+            if self.email_notifier and os.getenv('SEND_FAILURE_EMAILS', 'true').lower() == 'true':
+                self.email_notifier.send_failure_notification(
+                    pipeline_name="Bonds",
+                    error_message=str(e),
+                    execution_time=execution_time
+                )
+            
             return {'status': 'failed', 'error': str(e)}
     
     def run_economic(self):
@@ -128,6 +214,7 @@ class UnifiedPipeline:
             logger.info("Economic pipeline disabled in config")
             return {'status': 'skipped', 'reason': 'disabled in config'}
         
+        pipeline_start_time = time.time()
         try:
             logger.info("\n" + "🟣 " * 40)
             logger.info("RUNNING ECONOMIC INDICATORS PIPELINE")
@@ -139,9 +226,33 @@ class UnifiedPipeline:
             
             run_economic_pipeline(indicators=indicators, days=days)
             
-            return {'status': 'success', 'indicators': indicators, 'count': len(indicators)}
+            execution_time = time.time() - pipeline_start_time
+            
+            # Send success email
+            if self.email_notifier and os.getenv('SEND_SUCCESS_EMAILS', 'true').lower() == 'true':
+                self.email_notifier.send_success_notification(
+                    pipeline_name="Economic Indicators",
+                    records_count=len(indicators),
+                    execution_time=execution_time,
+                    details={
+                        'Indicators': ', '.join(indicators),
+                        'Days of Data': days
+                    }
+                )
+            
+            return {'status': 'success', 'indicators': indicators, 'count': len(indicators), 'execution_time': execution_time}
         except Exception as e:
+            execution_time = time.time() - pipeline_start_time
             logger.error(f"Economic pipeline failed: {str(e)}")
+            
+            # Send failure email
+            if self.email_notifier and os.getenv('SEND_FAILURE_EMAILS', 'true').lower() == 'true':
+                self.email_notifier.send_failure_notification(
+                    pipeline_name="Economic Indicators",
+                    error_message=str(e),
+                    execution_time=execution_time
+                )
+            
             return {'status': 'failed', 'error': str(e)}
     
     def run_commodities(self):
@@ -150,6 +261,7 @@ class UnifiedPipeline:
             logger.info("Commodities pipeline disabled in config")
             return {'status': 'skipped', 'reason': 'disabled in config'}
         
+        pipeline_start_time = time.time()
         try:
             logger.info("\n" + "🟠 " * 40)
             logger.info("RUNNING COMMODITIES PIPELINE")
@@ -162,9 +274,34 @@ class UnifiedPipeline:
             
             run_commodity_pipeline(symbols=symbols, days=days, source=source)
             
-            return {'status': 'success', 'symbols': symbols, 'count': len(symbols)}
+            execution_time = time.time() - pipeline_start_time
+            
+            # Send success email
+            if self.email_notifier and os.getenv('SEND_SUCCESS_EMAILS', 'true').lower() == 'true':
+                self.email_notifier.send_success_notification(
+                    pipeline_name="Commodities",
+                    records_count=len(symbols) * days,
+                    execution_time=execution_time,
+                    details={
+                        'Commodities': ', '.join(symbols),
+                        'Days of Data': days,
+                        'Source': source
+                    }
+                )
+            
+            return {'status': 'success', 'symbols': symbols, 'count': len(symbols), 'execution_time': execution_time}
         except Exception as e:
+            execution_time = time.time() - pipeline_start_time
             logger.error(f"Commodities pipeline failed: {str(e)}")
+            
+            # Send failure email
+            if self.email_notifier and os.getenv('SEND_FAILURE_EMAILS', 'true').lower() == 'true':
+                self.email_notifier.send_failure_notification(
+                    pipeline_name="Commodities",
+                    error_message=str(e),
+                    execution_time=execution_time
+                )
+            
             return {'status': 'failed', 'error': str(e)}
     
     def print_summary(self):
