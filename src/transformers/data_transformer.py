@@ -417,6 +417,8 @@ class DataTransformer:
         logger.info("Transforming bond price facts")
         
         transformed = price_df.copy()
+        logger.debug(f"Input columns: {transformed.columns.tolist()}")
+        logger.debug(f"Input shape: {transformed.shape}")
         
         # Map foreign keys
         if 'isin' in transformed.columns:
@@ -425,28 +427,45 @@ class DataTransformer:
             logger.warning("No ISIN column found in bond price data")
             return pd.DataFrame()
         
-        transformed['date_id'] = transformed['date'].apply(
-            lambda x: date_mapping.get(pd.to_datetime(x).date()) if isinstance(x, str) else date_mapping.get(x)
-        )
+        # Fix date mapping - convert to date object if needed
+        def get_date_id(date_val, mapping):
+            if pd.isna(date_val):
+                return None
+            if isinstance(date_val, str):
+                date_obj = pd.to_datetime(date_val).date()
+            elif hasattr(date_val, 'date'):  # datetime object
+                date_obj = date_val.date()
+            else:
+                date_obj = date_val
+            return mapping.get(date_obj)
+        
+        transformed['date_id'] = transformed['date'].apply(lambda x: get_date_id(x, date_mapping))
         transformed['source_id'] = source_id
         
-        # Select and rename columns for fact table
-        fact_columns = {
-            'bond_id': 'bond_id',
-            'date_id': 'date_id',
-            'source_id': 'source_id',
-            'price': 'price',
-            'yield': 'yield_percent',
-            'spread': 'spread',
-            'duration': 'duration'
-        }
+        # Ensure yield column exists with correct name
+        if 'yield' in transformed.columns:
+            transformed['yield_percent'] = transformed['yield']
         
-        available_columns = {k: v for k, v in fact_columns.items() if k in transformed.columns}
-        transformed = transformed.rename(columns=available_columns)
-        transformed = transformed[list(available_columns.values())]
+        logger.debug(f"Columns after processing: {transformed.columns.tolist()}")
         
-        # Remove rows with missing required fields
-        transformed = transformed.dropna(subset=['bond_id', 'date_id', 'price', 'yield_percent'])
+        # Build required columns list dynamically
+        required_cols = ['bond_id', 'date_id', 'yield_percent']
+        available_required = [col for col in required_cols if col in transformed.columns]
+        
+        logger.debug(f"Available required columns: {available_required}")
+        logger.debug(f"Shape before dropna: {transformed.shape}")
+        logger.debug(f"Sample data:\n{transformed.head()}")
+        
+        # Remove rows with missing required fields (at least bond_id, date_id, yield_percent)
+        transformed = transformed.dropna(subset=available_required)
+        
+        logger.debug(f"Shape after dropna: {transformed.shape}")
+        logger.debug(f"Columns after dropna: {transformed.columns.tolist()}")
+        
+        # Select only fact table columns
+        fact_table_columns = ['bond_id', 'date_id', 'source_id', 'price', 'yield_percent']
+        selected_columns = [col for col in fact_table_columns if col in transformed.columns]
+        transformed = transformed[selected_columns]
         
         # Ensure integer IDs
         transformed['bond_id'] = transformed['bond_id'].astype(int)
