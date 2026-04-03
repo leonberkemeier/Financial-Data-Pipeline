@@ -159,6 +159,7 @@ economic:
     - UNRATE
     - CPIAUCSL
     - FEDFUNDS
+    - VIXCLS      # VIX volatility index (needed by model_regime_comparison Bayesian framework)
   days: 365
   source: "fred"
 
