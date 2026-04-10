@@ -91,6 +91,7 @@ class UnifiedPipeline:
             logger.info("Stocks pipeline disabled in config")
             return {'status': 'skipped', 'reason': 'disabled in config'}
         
+        pipeline_start_time = time.time()
         try:
             logger.info("\n" + "🔵 " * 40)
             logger.info("RUNNING STOCKS PIPELINE")
@@ -105,9 +106,34 @@ class UnifiedPipeline:
             stock_pipeline = FinancialDataPipeline(data_source='yahoo')
             stock_pipeline.run(tickers=tickers, period=period)
             
-            return {'status': 'success', 'tickers': tickers, 'count': len(tickers)}
+            execution_time = time.time() - pipeline_start_time
+            
+            # Send success email
+            if self.email_notifier and os.getenv('SEND_SUCCESS_EMAILS', 'true').lower() == 'true':
+                self.email_notifier.send_success_notification(
+                    pipeline_name="Stocks",
+                    records_count=len(tickers) * 30,  # Approximate: tickers * trading days
+                    execution_time=execution_time,
+                    details={
+                        'Tickers': len(tickers),
+                        'Period': period,
+                        'Sample Tickers': ', '.join(tickers[:5])
+                    }
+                )
+            
+            return {'status': 'success', 'tickers': tickers, 'count': len(tickers), 'execution_time': execution_time}
         except Exception as e:
+            execution_time = time.time() - pipeline_start_time
             logger.error(f"Stocks pipeline failed: {str(e)}")
+            
+            # Send failure email
+            if self.email_notifier and os.getenv('SEND_FAILURE_EMAILS', 'true').lower() == 'true':
+                self.email_notifier.send_failure_notification(
+                    pipeline_name="Stocks",
+                    error_message=str(e),
+                    execution_time=execution_time
+                )
+            
             return {'status': 'failed', 'error': str(e)}
     
     def run_crypto(self):
