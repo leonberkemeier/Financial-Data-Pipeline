@@ -4,107 +4,691 @@
 stocks:
   enabled: true
   tickers:
-    # Major Indexes
-    - ^GSPC    # S&P 500 Index
-    - ^DJI     # Dow Jones Industrial Average
-    - ^IXIC    # NASDAQ Composite
-    - ^GDAXI   # DAX (German Stock Index)
-    - ^STOXX50E # Euro Stoxx 50 (European Index)
-    - ^FTSE    # FTSE 100 (UK Index)
-    
-    # Technology Sector
-    - AAPL     # Apple (US)
-    - MSFT     # Microsoft (US)
-    - GOOGL    # Alphabet/Google (US)
-    - META     # Meta/Facebook (US)
-    - NVDA     # NVIDIA (US)
-    - TSLA     # Tesla (US)
-    - AMD      # Advanced Micro Devices (US)
-    - INTC     # Intel (US)
-    - CRM      # Salesforce (US)
-    - ADBE     # Adobe (US)
-    - AMZN     # Amazon (US)
-    - ASML.AS  # ASML (Netherlands - Semiconductor)
-    - SAP.DE   # SAP (Germany - Software)
-    
-    # Finance Sector
-    - JPM      # JPMorgan Chase (US)
-    - BAC      # Bank of America (US)
-    - WFC      # Wells Fargo (US)
-    - GS       # Goldman Sachs (US)
-    - MS       # Morgan Stanley (US)
-    - C        # Citigroup (US)
-    - BLK      # BlackRock (US)
-    - AXP      # American Express (US)
-    - USB      # U.S. Bancorp (US)
-    - PNC      # PNC Financial Services (US)
-    - V        # Visa (US)
-    - MA       # Mastercard (US)
-    - DBK.DE   # Deutsche Bank (Germany) - Fixed ticker
-    - HSBA.L   # HSBC (UK)
-    - BNP.PA   # BNP Paribas (France)
-    - SAN.MC   # Banco Santander (Spain)
-    - CS.PA    # AXA (France - Insurance)
-    
-    # Chemical/Materials Sector
-    - BAS.DE   # BASF (Germany)
-    - DOW      # Dow Inc. (US)
-    - LYB      # LyondellBasell (US)
-    - DD       # DuPont (US)
-    - LIN.DE   # Linde (Germany - Industrial Gases)
-    - AIR.PA   # Air Liquide (France)
-    - EVK.DE   # Evonik Industries (Germany)
-    
-    # Automotive
-    - VOW3.DE  # Volkswagen (Germany)
-    - BMW.DE   # BMW (Germany)
-    - MBG.DE   # Mercedes-Benz (Germany)
-    - F        # Ford (US)
-    - GM       # General Motors (US)
-    
-    # Healthcare/Pharma
-    - JNJ      # Johnson & Johnson (US)
-    - PFE      # Pfizer (US)
-    - NVS      # Novartis (Switzerland)
-    - ROG.SW   # Roche (Switzerland)
-    - SAN.PA   # Sanofi (France)
-    - BAYN.DE  # Bayer (Germany)
-    
-    # Energy
-    - XOM      # Exxon Mobil (US)
-    - CVX      # Chevron (US)
-    - TTE.PA   # TotalEnergies (France)
-    - BP.L     # BP (UK)
-    - SHEL.L   # Shell (UK)
-    
-    # Consumer Goods & Retail
-    - PG       # Procter & Gamble (US)
-    - KO       # Coca-Cola (US)
-    - WMT      # Walmart (US)
-    - MC.PA    # LVMH (France - Luxury)
-    - OR.PA    # L'Oréal (France - Cosmetics)
-    - NESN.SW  # Nestlé (Switzerland)
-    - ADS.DE   # Adidas (Germany)
-    - UNA.AS   # Unilever (Netherlands)
-    
-    # Cyclicals / Industrials
-    - CAT      # Caterpillar (US)
-    - DE       # Deere & Company (US)
-    - BA       # Boeing (US)
-    - HON      # Honeywell (US)
-    - MMM      # 3M Company (US)
-    - GE       # General Electric (US)
-    - UPS      # United Parcel Service (US)
-    - FDX      # FedEx (US)
-    - DAL      # Delta Air Lines (US)
-    - UAL      # United Airlines (US)
-    
-    # Cryptocurrencies (Yahoo Finance format)
-    - BTC-USD  # Bitcoin
-    - ETH-USD  # Ethereum
-    - SOL-USD  # Solana
-    - BNB-USD  # Binance Coin
-    - ADA-USD  # Cardano
+    # All 684 stocks from database
+    - 000001.SS
+    - 0388.HK
+    - 0700.HK
+    - 0939.HK
+    - 0941.HK
+    - 1299.HK
+    - 1810.HK
+    - 1COV.DE
+    - 2318.HK
+    - 2382.HK
+    - 3690.HK
+    - 600036.SS
+    - 600276.SS
+    - 600519.SS
+    - 601166.SS
+    - 601318.SS
+    - 9988.HK
+    - A
+    - AAPL
+    - ABB.ST
+    - ABBN.SW
+    - ABBV
+    - ABEV3.SA
+    - ABN.AS
+    - ABNB
+    - ABT
+    - ACGL
+    - ACN
+    - ADBE
+    - ADI
+    - ADM
+    - ADP
+    - ADS.DE
+    - ADSK
+    - ADYEN.AS
+    - AEE
+    - AEGN.AT
+    - AEP
+    - AES
+    - AFL
+    - AGN.AS
+    - AIG
+    - AIR.DE
+    - AIR.PA
+    - AIZ
+    - AJG
+    - AKAM
+    - AKBNK.IS
+    - AKZA.AS
+    - ALB
+    - ALC.SW
+    - ALFA.ST
+    - ALGN
+    - ALL
+    - ALLE
+    - ALV.DE
+    - AMAT
+    - AMCR
+    - AMD
+    - AME
+    - AMGN
+    - AMP
+    - AMS.MC
+    - AMT
+    - AMZN
+    - ANET
+    - AON
+    - AOS
+    - APA
+    - APD
+    - APH
+    - APO
+    - APTV
+    - ARE
+    - ASM.AS
+    - ASML.AS
+    - ATCO-A.ST
+    - ATO
+    - AVB
+    - AVGO
+    - AVY
+    - AWK
+    - AXON
+    - AXP
+    - AZO
+    - B3SA3.SA
+    - BA
+    - BAC
+    - BALL
+    - BAS.DE
+    - BAX
+    - BBDC4.SA
+    - BBVA.MC
+    - BBY
+    - BCP.LS
+    - BDX
+    - BEI.DE
+    - BEN
+    - BESI.AS
+    - BG
+    - BHARTIARTL.NS
+    - BIIB
+    - BK
+    - BKNG
+    - BKR
+    - BLDR
+    - BLK
+    - BMW.DE
+    - BMY
+    - BNP.PA
+    - BNR.DE
+    - BR
+    - BRO
+    - BSX
+    - BX
+    - BXP
+    - C
+    - CABK.MC
+    - CAG
+    - CAH
+    - CARR
+    - CAT
+    - CB
+    - CBOE
+    - CBRE
+    - CCI
+    - CCL
+    - CDNS
+    - CDR.WA
+    - CDW
+    - CEG
+    - CF
+    - CFG
+    - CHD
+    - CHRW
+    - CHTR
+    - CI
+    - CINF
+    - CL
+    - CLX
+    - CMCSA
+    - CME
+    - CMG
+    - CMI
+    - CMS
+    - CNC
+    - CNP
+    - COF
+    - COIN
+    - CON.DE
+    - COO
+    - COP
+    - COR
+    - COST
+    - CPAY
+    - CPB
+    - CPR.MI
+    - CPRT
+    - CPT
+    - CRL
+    - CRM
+    - CRWD
+    - CS.PA
+    - CSCO
+    - CSGP
+    - CSX
+    - CTAS
+    - CTRA
+    - CTSH
+    - CTVA
+    - CVS
+    - CVX
+    - CZR
+    - D
+    - DAL
+    - DASH
+    - DAY
+    - DB1.DE
+    - DBK.DE
+    - DD
+    - DDOG
+    - DE
+    - DECK
+    - DELL
+    - DEMANT.CO
+    - DG
+    - DG.PA
+    - DGX
+    - DHER.DE
+    - DHI
+    - DHL.DE
+    - DHR
+    - DIS
+    - DLR
+    - DLTR
+    - DNB.OL
+    - DOC
+    - DOV
+    - DOW
+    - DPZ
+    - DRI
+    - DSV.CO
+    - DSY.PA
+    - DTE
+    - DTE.DE
+    - DTG.DE
+    - DUK
+    - DVA
+    - DVN
+    - DXCM
+    - EA
+    - EBAY
+    - ECL
+    - ED
+    - EDP.LS
+    - EFX
+    - EG
+    - EIX
+    - EL
+    - EL.PA
+    - ELE.MC
+    - ELPE.AT
+    - ELV
+    - EMN
+    - EMR
+    - ENEL.MI
+    - ENI.MI
+    - ENPH
+    - ENR.DE
+    - EOG
+    - EPAM
+    - EQIX
+    - EQNR.OL
+    - EQR
+    - EQT
+    - EREGL.IS
+    - ERIC-B.ST
+    - ERIE
+    - ES
+    - ESS
+    - ETN
+    - ETR
+    - EVRG
+    - EW
+    - EXC
+    - EXE
+    - EXPD
+    - EXPE
+    - EXR
+    - EYDAP.AT
+    - F
+    - FANG
+    - FAST
+    - FCX
+    - FDS
+    - FDX
+    - FE
+    - FER.MC
+    - FFIV
+    - FICO
+    - FIS
+    - FITB
+    - FOX
+    - FOXA
+    - FRE.DE
+    - FRT
+    - FSLR
+    - FTNT
+    - FTV
+    - G.MI
+    - GALP.LS
+    - GARAN.IS
+    - GD
+    - GDDY
+    - GE
+    - GEBN.SW
+    - GEHC
+    - GEN
+    - GEV
+    - GILD
+    - GIS
+    - GIVN.SW
+    - GL
+    - GLPG.AS
+    - GLW
+    - GM
+    - GNRC
+    - GOOG
+    - GOOGL
+    - GPC
+    - GPN
+    - GRMN
+    - GS
+    - GWW
+    - HAL
+    - HAS
+    - HBAN
+    - HCA
+    - HD
+    - HDFCBANK.NS
+    - HEI.DE
+    - HEIA.AS
+    - HEN3.DE
+    - HIG
+    - HII
+    - HINDUNILVR.NS
+    - HLT
+    - HM-B.ST
+    - HNR1.DE
+    - HOLX
+    - HON
+    - HPE
+    - HPQ
+    - HRL
+    - HSIC
+    - HST
+    - HSY
+    - HUBB
+    - HUM
+    - HWM
+    - IBE.MC
+    - IBM
+    - ICE
+    - ICICIBANK.NS
+    - IDXX
+    - IEX
+    - IFF
+    - IFX.DE
+    - INCY
+    - INFY.NS
+    - INGA.AS
+    - INTC
+    - INTU
+    - INVH
+    - IP
+    - IPG
+    - IQV
+    - IR
+    - IRM
+    - ISP.MI
+    - ISRG
+    - IT
+    - ITC.NS
+    - ITUB4.SA
+    - ITW
+    - ITX.MC
+    - IVZ
+    - J
+    - JBHT
+    - JBL
+    - JCI
+    - JKHY
+    - JMT.LS
+    - JNJ
+    - JPM
+    - K
+    - KDP
+    - KER.PA
+    - KEY
+    - KEYS
+    - KGH.WA
+    - KHC
+    - KIM
+    - KKR
+    - KLAC
+    - KMB
+    - KMI
+    - KMX
+    - KO
+    - KPN.AS
+    - KR
+    - KVUE
+    - L
+    - LDOS
+    - LEN
+    - LH
+    - LHX
+    - LII
+    - LIN
+    - LIN.DE
+    - LKQ
+    - LLY
+    - LMT
+    - LNT
+    - LONN.SW
+    - LOW
+    - LPP.WA
+    - LRCX
+    - LULU
+    - LUV
+    - LVS
+    - LW
+    - LYB
+    - LYV
+    - MA
+    - MAA
+    - MAR
+    - MAS
+    - MBG.DE
+    - MC.PA
+    - MCD
+    - MCHP
+    - MCK
+    - MCO
+    - MDLZ
+    - MDT
+    - MET
+    - META
+    - MGM
+    - MHK
+    - MKC
+    - MKTX
+    - MLM
+    - MMC
+    - MMM
+    - MNST
+    - MO
+    - MOH
+    - MOL.BD
+    - MOS
+    - MOWI.OL
+    - MPC
+    - MPWR
+    - MRK
+    - MRK.DE
+    - MRNA
+    - MS
+    - MSCI
+    - MSFT
+    - MSI
+    - MTB
+    - MTCH
+    - MTD
+    - MTX.DE
+    - MU
+    - MUV2.DE
+    - NCLH
+    - NDAQ
+    - NDSN
+    - NEE
+    - NEM
+    - NESN.SW
+    - NFLX
+    - NI
+    - NKE
+    - NN.AS
+    - NOC
+    - NOVN.SW
+    - NOVO-B.CO
+    - NOW
+    - NRG
+    - NSC
+    - NTAP
+    - NTRS
+    - NUE
+    - NVDA
+    - NVR
+    - NWS
+    - NWSA
+    - NXPI
+    - O
+    - ODFL
+    - OKE
+    - OMC
+    - ON
+    - OPAP.AT
+    - OR.PA
+    - ORCL
+    - ORK.OL
+    - ORLY
+    - ORSTED.CO
+    - OTIS
+    - OTP.BD
+    - OXY
+    - P911.DE
+    - PAH3.DE
+    - PANW
+    - PAYC
+    - PAYX
+    - PCAR
+    - PCG
+    - PEG
+    - PEO.WA
+    - PEP
+    - PETR4.SA
+    - PFE
+    - PFG
+    - PG
+    - PGR
+    - PH
+    - PHIA.AS
+    - PHM
+    - PKG
+    - PKN.WA
+    - PKO.WA
+    - PLD
+    - PLTR
+    - PM
+    - PNC
+    - PNDORA.CO
+    - PNR
+    - PNW
+    - PODD
+    - POOL
+    - PPC.AT
+    - PPG
+    - PPL
+    - PRU
+    - PSA
+    - PSKY
+    - PSX
+    - PTC
+    - PUM.DE
+    - PWR
+    - PYPL
+    - PZU.WA
+    - QCOM
+    - QIA.DE
+    - RACE.MI
+    - RAND.AS
+    - RCL
+    - REG
+    - REGN
+    - RELIANCE.NS
+    - RENT3.SA
+    - REP.MC
+    - RF
+    - RHM.DE
+    - RICHTER.BD
+    - RJF
+    - RL
+    - RMD
+    - RMS.PA
+    - ROG.SW
+    - ROK
+    - ROL
+    - ROP
+    - ROST
+    - RSG
+    - RTX
+    - RVTY
+    - RWE.DE
+    - SAHOL.IS
+    - SAN.MC
+    - SAN.PA
+    - SAND.ST
+    - SAP.DE
+    - SBAC
+    - SBIN.NS
+    - SBUX
+    - SCHW
+    - SCMN.SW
+    - SEB-A.ST
+    - SGO.PA
+    - SHL.DE
+    - SHW
+    - SIE.DE
+    - SIKA.SW
+    - SISE.IS
+    - SJM
+    - SLB
+    - SLHN.SW
+    - SMCI
+    - SNA
+    - SNPS
+    - SO
+    - SOLV
+    - SPG
+    - SPGI
+    - SRE
+    - SREN.SW
+    - SRT3.DE
+    - STE
+    - STLAM.MI
+    - STLD
+    - STT
+    - STX
+    - STZ
+    - SU.PA
+    - SW
+    - SWED-A.ST
+    - SWK
+    - SWKS
+    - SY1.DE
+    - SYF
+    - SYK
+    - SYY
+    - T
+    - TAP
+    - TCS.NS
+    - TDG
+    - TDY
+    - TECH
+    - TEF.MC
+    - TEL
+    - TEL.OL
+    - TEN.MI
+    - TER
+    - TFC
+    - TGT
+    - THYAO.IS
+    - TJX
+    - TKO
+    - TMO
+    - TMUS
+    - TPL
+    - TPR
+    - TRGP
+    - TRMB
+    - TROW
+    - TRV
+    - TRYG.CO
+    - TSCO
+    - TSLA
+    - TSN
+    - TT
+    - TTD
+    - TTE.PA
+    - TTWO
+    - TUPRS.IS
+    - TXN
+    - TXT
+    - TYL
+    - UAL
+    - UBER
+    - UBSG.SW
+    - UCG.MI
+    - UDR
+    - UHS
+    - ULTA
+    - UNA.AS
+    - UNH
+    - UNP
+    - UPS
+    - URI
+    - USB
+    - V
+    - VALE3.SA
+    - VICI
+    - VIE.PA
+    - VLO
+    - VLTO
+    - VMC
+    - VNA.DE
+    - VOLV-B.ST
+    - VOW3.DE
+    - VRSK
+    - VRSN
+    - VRTX
+    - VST
+    - VTR
+    - VTRS
+    - VWS.CO
+    - VZ
+    - WAB
+    - WAT
+    - WBD
+    - WDAY
+    - WDC
+    - WEC
+    - WEGE3.SA
+    - WELL
+    - WFC
+    - WIPRO.NS
+    - WM
+    - WMB
+    - WMT
+    - WRB
+    - WSM
+    - WST
+    - WTW
+    - WY
+    - WYNN
+    - XEL
+    - XOM
+    - XYL
+    - XYZ
+    - YAR.OL
+    - YUM
+    - ZAL.DE
+    - ZBH
+    - ZBRA
+    - ZTS
+    - ZURN.SW
     
   period: "30d"  # 1d, 5d, 1mo, 3mo, 1y, max
   source: "yahoo"  # yahoo or alpha_vantage
