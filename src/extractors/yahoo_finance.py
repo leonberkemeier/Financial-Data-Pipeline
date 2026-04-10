@@ -1,4 +1,5 @@
 """Yahoo Finance data extractor."""
+import time
 import yfinance as yf
 import pandas as pd
 from datetime import datetime, timedelta
@@ -17,7 +18,8 @@ class YahooFinanceExtractor:
         tickers: List[str],
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
-        period: str = "1mo"
+        period: str = "1mo",
+        rate_limit_delay: float = 0.0
     ) -> pd.DataFrame:
         """
         Extract historical stock prices for given tickers.
@@ -27,15 +29,18 @@ class YahooFinanceExtractor:
             start_date: Start date in 'YYYY-MM-DD' format
             end_date: End date in 'YYYY-MM-DD' format
             period: Period to download (e.g., '1d', '5d', '1mo', '1y', 'max')
+            rate_limit_delay: Delay in seconds between API calls (default: 0.0)
 
         Returns:
             DataFrame with stock price data
         """
         logger.info(f"Extracting data for {len(tickers)} tickers from Yahoo Finance")
+        if rate_limit_delay > 0:
+            logger.info(f"Rate limiting enabled: {rate_limit_delay}s between requests")
         
         all_data = []
         
-        for ticker in tickers:
+        for idx, ticker in enumerate(tickers):
             try:
                 logger.debug(f"Fetching data for {ticker}")
                 
@@ -87,6 +92,11 @@ class YahooFinanceExtractor:
                 
                 all_data.append(data)
                 logger.debug(f"Successfully fetched {len(data)} records for {ticker}")
+                
+                # Apply rate limiting between requests (except for last ticker)
+                if rate_limit_delay > 0 and idx < len(tickers) - 1:
+                    logger.info(f"Rate limiting: sleeping {rate_limit_delay}s before next request")
+                    time.sleep(rate_limit_delay)
                 
             except Exception as e:
                 logger.error(f"Error fetching data for {ticker}: {str(e)}")

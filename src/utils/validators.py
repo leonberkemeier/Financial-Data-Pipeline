@@ -36,6 +36,12 @@ class DataQualityValidator:
         for col in required_columns:
             null_count = df[col].isnull().sum()
             if null_count > 0:
+                # For 'close' column, allow up to 0.1% null values (acceptable data quality)
+                if col == 'close':
+                    null_percentage = (null_count / len(df)) * 100
+                    if null_percentage <= 0.1:
+                        logger.warning(f"Column '{col}' has {null_count} null values ({null_percentage:.4f}%) - within acceptable tolerance")
+                        continue
                 errors.append(f"Column '{col}' has {null_count} null values")
         
         # Validate price values

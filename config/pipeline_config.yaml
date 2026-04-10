@@ -469,7 +469,7 @@ stocks:
     - ODFL
     - OKE
     - OMC
-    - ON
+    - "ON"
     - OPAP.AT
     - OR.PA
     - ORCL
@@ -692,6 +692,7 @@ stocks:
     
   period: "30d"  # 1d, 5d, 1mo, 3mo, 1y, max
   source: "yahoo"  # yahoo or alpha_vantage
+  rate_limit_delay: 1.0  # seconds between API calls (to avoid rate limiting with 684 stocks)
 
 crypto:
   enabled: true
